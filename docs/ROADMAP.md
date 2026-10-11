@@ -38,6 +38,11 @@ estiver concluída e as decisões de produto bloqueantes, aprovadas.
       motivo, histórico de versões, problemas de materiais para a
       coordenação, envio repetido sem duplicar. Só online (OD-35).
       Regras provisórias OD-06, OD-32 a OD-35.
+- [x] **Registros operacionais e alerta de reforço**: categorias com campos
+      configuráveis e versões, registros do posto com anulação; alerta do
+      capitão com estados, ações da coordenação, histórico, aviso interno
+      por consulta periódica, falhas de envio explícitas. Regras
+      provisórias OD-36 a OD-40.
 
 ## Pendente da etapa de requisitos
 
@@ -52,6 +57,9 @@ estiver concluída e as decisões de produto bloqueantes, aprovadas.
 - [ ] Testar a presença offline em aparelhos reais (Android e iOS).
 - [ ] Confirmar OD-06 e OD-32 a OD-35 (checklist), inclusive se o
       checklist deve funcionar offline.
+- [ ] Definir o canal oficial de emergência exibido quando o alerta não é
+      enviado (OD-13), quem além do capitão envia (OD-36) e as categorias
+      oficiais de registro (OD-11, OD-39).
 
 ## Próximas fases técnicas
 

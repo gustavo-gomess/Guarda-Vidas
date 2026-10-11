@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AlertsLink } from "@/features/alerts/components/live";
 import { logoutAction } from "@/features/auth/actions";
 import { ROLE_LABELS, type Actor } from "@/lib/auth/policy";
 
@@ -19,6 +20,16 @@ export function UserMenu({ actor }: { actor: Actor }) {
         <Link href="/checklists" className="underline">
           Checklist
         </Link>
+        <Link href="/ocorrencias" className="underline">
+          Ocorrências
+        </Link>
+        {actor.role === "COORDINATOR" ? (
+          <AlertsLink />
+        ) : (
+          <Link href="/alertas" className="underline">
+            Alertas
+          </Link>
+        )}
         <Link href="/disponibilidade" className="underline">
           Disponibilidade
         </Link>
@@ -29,6 +40,9 @@ export function UserMenu({ actor }: { actor: Actor }) {
             </Link>
             <Link href="/admin/postos" className="underline">
               Postos
+            </Link>
+            <Link href="/admin/ocorrencias" className="underline">
+              Categorias
             </Link>
           </>
         ) : null}

@@ -352,6 +352,37 @@ fila da presença pode ser reaproveitada com o mesmo id de envio.
 
 ---
 
+## D012 — Alertas de reforço e registros operacionais
+
+**Contexto.** Prompt 6: alerta persistido antes da confirmação, sem
+duplicar, sem perder histórico e sem reconhecimento acidental; registros
+operacionais com campos configuráveis e autoria auditável.
+
+**Decisão.**
+
+- **Envio do alerta por Route Handler** (`POST /api/alertas`), como a
+  presença: a página de envio pode vir do cache offline. A resposta 201/200
+  só sai depois do `COMMIT` do alerta e do primeiro evento. Qualquer falha,
+  inclusive na leitura da sessão, vira 503 em JSON; a tela trata qualquer
+  resposta sem o alerta como **não enviado**.
+- **Id gerado no navegador** para alerta e registro: repetir não duplica.
+- **Transições** em função pura com tabela explícita; a ação trava a linha
+  (`FOR UPDATE`) e compara o estado esperado, então dois coordenadores
+  agindo juntos resultam em uma ação aceita e uma recusada com explicação.
+- **Aviso interno por consulta periódica** (30 s) em vez de push: simples,
+  sem dependências e sem serviço externo (TECHNICAL-IMPLICATIONS §6).
+- **Campos configuráveis em JSON validado por Zod** na versão da categoria,
+  com 4 tipos e até 8 campos: flexível sem virar um construtor de
+  formulários. Registros apontam para a versão usada.
+- **Triggers**: categorias, versões, registros, anulações e eventos são só
+  inserção; no alerta só o estado muda.
+
+**Consequências.** O aviso chega só a quem está com a página aberta; avisar
+coordenador com o app fechado exige push (OD-12). Mudar `public/sw.js`
+exigiu subir a versão dos caches (v2).
+
+---
+
 ## Decisões pendentes
 
 Decisões de **produto** ficam em `OPEN-DECISIONS.md`. Pendências técnicas:

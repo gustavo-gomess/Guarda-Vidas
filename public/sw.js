@@ -1,14 +1,17 @@
 /* Service worker: lets the presence page open without internet.
  *
- * Deliberately small (no library): only /presenca is kept for offline use,
+ * Deliberately small (no library): only /presenca and /alertas/novo are kept
+ * for offline use,
  * network first, so online users always get fresh data. Static build files
  * (/_next/static, content-hashed) are cached on first use. API calls are
  * never cached or answered from cache: the device must not believe the
  * server confirmed something it did not.
  */
-const PAGE_CACHE = "gv-pages-v1";
-const STATIC_CACHE = "gv-static-v1";
-const OFFLINE_PAGES = ["/presenca"];
+const PAGE_CACHE = "gv-pages-v2";
+const STATIC_CACHE = "gv-static-v2";
+// /alertas/novo opens offline only to say clearly that an alert cannot be
+// sent without internet and to point to the official channel.
+const OFFLINE_PAGES = ["/presenca", "/alertas/novo"];
 
 self.addEventListener("install", () => self.skipWaiting());
 

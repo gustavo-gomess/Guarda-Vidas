@@ -23,7 +23,10 @@ export type AuditEntry = {
     | "Schedule"
     | "AttendanceRecord"
     | "ChecklistItem"
-    | "Checklist";
+    | "Checklist"
+    | "OccurrenceCategory"
+    | "Occurrence"
+    | "ReinforcementAlert";
   entityId: string;
   postId?: string | null;
   before?: Record<string, unknown> | null;

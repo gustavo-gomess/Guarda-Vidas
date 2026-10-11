@@ -48,6 +48,12 @@ Actions. Veja `ROADMAP.md`.
 | `ChecklistLine` | Cópia congelada dos itens no início do checklist. Só inserção |
 | `ChecklistRevision` / `ChecklistAnswer` | Cada salvamento: versão completa das respostas (rascunho, envio ou correção com motivo), id gerado pelo navegador. Só inserção |
 
+| `OccurrenceCategory` / `OccurrenceCategoryVersion` | Categorias de registro operacional e suas versões (nome, campos em JSON validado). Só inserção |
+| `Occurrence` | Registro operacional do posto (id gerado no navegador, autor, categoria e versão, quando aconteceu, valores). Imutável |
+| `OccurrenceAnnulment` | Anulação de um registro feito por engano, com motivo. Só inserção |
+| `ReinforcementAlert` | Alerta de reforço (id gerado no navegador, posto, autor, descrição, estado). Só `status` muda |
+| `AlertEvent` | Cada mudança de estado do alerta: quem, quando, de/para, nota. Só inserção |
+
 Histórico **do posto** × histórico **pessoal**: alterações da lista e
 envios/correções de checklist vão para o histórico do posto (`AuditLog`
 com `postId`) e para "Problemas de materiais", com o autor identificado; o
@@ -75,25 +81,28 @@ cookie (token) ──► getCurrentSession() ──► validateSession() ──�
                                   → transação + recordAudit
 ```
 
-| Arquivo                             | Responsabilidade                                                             |
-| ----------------------------------- | ---------------------------------------------------------------------------- |
-| `src/lib/auth/password.ts`          | Hash `scrypt`, verificação, senha temporária                                 |
-| `src/lib/auth/tokens.ts`            | Token de sessão e seu hash                                                   |
-| `src/lib/auth/auth-service.ts`      | Regras de login e sessão (puras, testadas)                                   |
-| `src/lib/auth/prisma-auth-store.ts` | Implementação Prisma do `AuthStore`                                          |
-| `src/lib/auth/session.ts`           | Cookies, `getCurrentSession`, `requireActor`                                 |
-| `src/lib/auth/policy.ts`            | Todas as regras de permissão (puras, testadas)                               |
-| `src/lib/audit.ts`                  | `recordAudit` (mesma transação, sem campos sensíveis)                        |
-| `src/features/auth/`                | Login, logout, troca de senha                                                |
-| `src/features/users/`               | Administração de contas                                                      |
-| `src/features/posts/`               | Postos, áreas de coordenação, equipe e capitão                               |
-| `src/features/availability/`        | Janelas e disponibilidade                                                    |
-| `src/features/schedules/`           | Regras de escala (puras), montagem, confirmação, filtros                     |
-| `src/features/attendance/`          | Presença: regras puras, serviço idempotente, decisões, consultas             |
-| `src/features/attendance/client/`   | Aparelho: fila offline (IndexedDB), GPS, relógio, envio                      |
-| `src/features/checklists/`          | Checklist: regras puras, versões de itens, salvamento idempotente, consultas |
-| `public/sw.js`                      | Service worker: `/presenca` e arquivos estáticos offline                     |
-| `scripts/admin.ts`                  | Primeiro administrador e recuperação de admin                                |
+| Arquivo                             | Responsabilidade                                                                                           |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `src/lib/auth/password.ts`          | Hash `scrypt`, verificação, senha temporária                                                               |
+| `src/lib/auth/tokens.ts`            | Token de sessão e seu hash                                                                                 |
+| `src/lib/auth/auth-service.ts`      | Regras de login e sessão (puras, testadas)                                                                 |
+| `src/lib/auth/prisma-auth-store.ts` | Implementação Prisma do `AuthStore`                                                                        |
+| `src/lib/auth/session.ts`           | Cookies, `getCurrentSession`, `requireActor`                                                               |
+| `src/lib/auth/policy.ts`            | Todas as regras de permissão (puras, testadas)                                                             |
+| `src/lib/audit.ts`                  | `recordAudit` (mesma transação, sem campos sensíveis)                                                      |
+| `src/features/auth/`                | Login, logout, troca de senha                                                                              |
+| `src/features/users/`               | Administração de contas                                                                                    |
+| `src/features/posts/`               | Postos, áreas de coordenação, equipe e capitão                                                             |
+| `src/features/availability/`        | Janelas e disponibilidade                                                                                  |
+| `src/features/schedules/`           | Regras de escala (puras), montagem, confirmação, filtros                                                   |
+| `src/features/attendance/`          | Presença: regras puras, serviço idempotente, decisões, consultas                                           |
+| `src/features/attendance/client/`   | Aparelho: fila offline (IndexedDB), GPS, relógio, envio                                                    |
+| `src/features/alerts/`              | Alerta de reforço: estados e transições (puros), gravação idempotente, ações, aviso por consulta periódica |
+| `src/features/occurrences/`         | Registros operacionais: campos configuráveis, versões de categoria, anulação                               |
+| `src/lib/http.ts`                   | Origem, JSON e tamanho para Route Handlers                                                                 |
+| `src/features/checklists/`          | Checklist: regras puras, versões de itens, salvamento idempotente, consultas                               |
+| `public/sw.js`                      | Service worker: `/presenca` e arquivos estáticos offline                                                   |
+| `scripts/admin.ts`                  | Primeiro administrador e recuperação de admin                                                              |
 
 ### Rotas
 
@@ -111,6 +120,12 @@ cookie (token) ──► getCurrentSession() ──► validateSession() ──�
 | `/presenca/validacao`                                          | Coordenador decide (sua área); autoridade consulta; 404 para guarda-vidas                                                            |
 | `/presenca/painel`                                             | Presença do dia: validada × provisória × sem registro; filtros por dia e posto                                                       |
 | `/presenca/jornadas/[journeyId]`                               | Dono, coordenador do posto, autoridade e admin: registros, decisões e histórico                                                      |
+| `/alertas`                                                     | Coordenador (área), autoridade, admin; capitão vê os do seu posto. Sem reconhecimento em destaque; atualiza a cada 30 s              |
+| `/alertas/novo`                                                | Capitão envia; abre sem internet para orientar o canal oficial                                                                       |
+| `/alertas/[alertId]`                                           | Histórico de estados; ações do coordenador do posto; cancelar pelo autor                                                             |
+| `POST /api/alertas` · `GET /api/alertas/pendentes`             | Grava o alerta antes de responder (201/200; 503 se indisponível) · contador do menu                                                  |
+| `/ocorrencias` · `/ocorrencias/nova` · `/ocorrencias/[id]`     | Livro do posto (filtros período, posto, categoria) · registro pela equipe · detalhe, anulação e histórico                            |
+| `/admin/ocorrencias`                                           | Categorias e campos (administradores)                                                                                                |
 | `/checklists`                                                  | Guarda-vidas: os seus por jornada. Coordenação e autoridade: pendentes, incompletos e enviados do dia (filtros dia, posto, situação) |
 | `/checklists/[journeyId]`                                      | Dono preenche/envia/corrige; coordenador do posto, autoridade e admin consultam; histórico de versões                                |
 | `/checklists/problemas`                                        | Itens ausentes, danificados ou inadequados (filtros período, posto, problema); 404 para guarda-vidas                                 |

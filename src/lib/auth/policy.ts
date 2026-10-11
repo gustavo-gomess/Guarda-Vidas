@@ -26,6 +26,12 @@
  * - The post's COORDINATOR edits the post's item list.
  * - Only the LIFEGUARD of the assumption fills and corrects its checklist.
  * - Coordinators (area), authority and administrators consult.
+ *
+ * Occurrences and reinforcement alerts (provisional, OD-36..OD-40):
+ * - Lifeguards of the post's team register occurrences; administrators
+ *   configure the categories and fields.
+ * - The post's captain sends reinforcement alerts; the post's coordinators
+ *   acknowledge, attend and close them; author or coordinator cancels.
  */
 
 export type Role = "AUTHORITY" | "COORDINATOR" | "LIFEGUARD";
@@ -143,6 +149,53 @@ export function canManageChecklistItems(actor: Actor, postId: string): boolean {
 /** Fill or correct the checklist of a journey: only its own lifeguard. */
 export function canFillChecklist(actor: Actor, journeyUserId: string): boolean {
   return actor.role === "LIFEGUARD" && actor.id === journeyUserId;
+}
+
+/** Register occurrences and other operational records of a post. */
+export function canRecordOccurrence(actor: Actor, postId: string): boolean {
+  return actor.role === "LIFEGUARD" && actor.assignedPostIds.includes(postId);
+}
+
+/** Read a post's operational records (the post's history). */
+export function canViewOccurrences(actor: Actor, postId: string): boolean {
+  return canViewPost(actor, postId);
+}
+
+/** Annul a record registered by mistake: its author or the coordinator. */
+export function canAnnulOccurrence(
+  actor: Actor,
+  record: { postId: string; authorId: string },
+): boolean {
+  return (
+    (actor.role === "LIFEGUARD" && actor.id === record.authorId) ||
+    coordinates(actor, record.postId)
+  );
+}
+
+/** Configure occurrence categories and their fields (all posts). */
+export function canManageOccurrenceCategories(actor: Actor): boolean {
+  return actor.isAdmin;
+}
+
+/** Send a reinforcement alert from a post. */
+export function canCreateAlert(actor: Actor, postId: string): boolean {
+  return canActAsCaptain(actor, postId);
+}
+
+/** Acknowledge, attend and close the alerts of a post. */
+export function canManageAlerts(actor: Actor, postId: string): boolean {
+  return coordinates(actor, postId);
+}
+
+export function canViewAlert(
+  actor: Actor,
+  alert: { postId: string; authorId: string },
+): boolean {
+  return (
+    actor.id === alert.authorId ||
+    canActAsCaptain(actor, alert.postId) ||
+    canViewPostSchedules(actor, alert.postId)
+  );
 }
 
 /** Captain-only operational duties, e.g. reinforcement alerts. */

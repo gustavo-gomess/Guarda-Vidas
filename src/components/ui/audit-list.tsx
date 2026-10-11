@@ -28,6 +28,15 @@ const ACTION_LABELS: Record<string, string> = {
   "checklist.start": "Checklist iniciado",
   "checklist.submit": "Checklist enviado",
   "checklist.correct": "Checklist corrigido",
+  "alert.create": "Alerta de reforço enviado",
+  "alert.acknowledge": "Alerta reconhecido",
+  "alert.start": "Alerta em atendimento",
+  "alert.close": "Alerta encerrado",
+  "alert.cancel": "Alerta cancelado",
+  "occurrence_category.create": "Categoria de registro criada",
+  "occurrence_category.update": "Categoria de registro alterada (nova versão)",
+  "occurrence.create": "Registro operacional criado",
+  "occurrence.annul": "Registro operacional anulado",
 };
 
 type AuditEntryView = {

@@ -6,16 +6,16 @@ fluxo offline implementado: a **entrada de presença**.
 
 ## Matriz por funcionalidade (proposta, pendente de aprovação — OD-18)
 
-| Funcionalidade                     | Sem internet                                       | Situação                           |
-| ---------------------------------- | -------------------------------------------------- | ---------------------------------- |
-| Login                              | Não (exige servidor)                               | Definido (segurança)               |
-| **Entrada de presença**            | **Sim: provisória, guardada no aparelho**          | **Aprovado (RF-03), implementado** |
-| Saída de presença                  | **Não**: exige internet                            | **Pendente (OD-10)**               |
-| Consultar a própria escala         | Só a última versão aberta online (página em cache) | Implementado como efeito do cache  |
-| Disponibilidade, escala, validação | Não                                                | Proposta: online apenas            |
-| Checklist e materiais              | **Não**: online, com reenvio seguro (sem duplicar) | **Pendente (OD-35)**               |
-| Ocorrências e registros do posto   | A decidir por funcionalidade                       | Pendente                           |
-| Alerta de reforço                  | Não chega a ninguém sem internet                   | Pendente (OD-13)                   |
+| Funcionalidade                     | Sem internet                                               | Situação                           |
+| ---------------------------------- | ---------------------------------------------------------- | ---------------------------------- |
+| Login                              | Não (exige servidor)                                       | Definido (segurança)               |
+| **Entrada de presença**            | **Sim: provisória, guardada no aparelho**                  | **Aprovado (RF-03), implementado** |
+| Saída de presença                  | **Não**: exige internet                                    | **Pendente (OD-10)**               |
+| Consultar a própria escala         | Só a última versão aberta online (página em cache)         | Implementado como efeito do cache  |
+| Disponibilidade, escala, validação | Não                                                        | Proposta: online apenas            |
+| Checklist e materiais              | **Não**: online, com reenvio seguro (sem duplicar)         | **Pendente (OD-35)**               |
+| Ocorrências e registros do posto   | **Não**: online, com reenvio seguro                        | **Pendente (OD-40)**               |
+| Alerta de reforço                  | **Não é enviado**; a página abre e orienta o canal oficial | Implementado (OD-40, OD-13)        |
 
 ## Entrada de presença sem internet
 

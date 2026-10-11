@@ -277,6 +277,50 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
 - Pendente: aprovar ou não o checklist offline. Se aprovado, o desenho da
   presença (fila no IndexedDB + envio idempotente) pode ser reaproveitado.
 
+### OD-36 — Quem envia alerta de reforço
+
+- O pedido diz "o capitão do posto, ou usuário autorizado".
+- **Provisória (implementada):** só o **capitão do posto**. "Usuário
+  autorizado" não foi definido. Coordenadores não enviam (eles recebem).
+- Pendente: substituto quando o capitão não está de serviço; qualquer
+  guarda-vidas escalado no dia poder enviar.
+
+### OD-37 — Alertas duplicados
+
+- **Provisória (implementada):** reenviar o mesmo alerta (resposta perdida,
+  toque duplo) nunca grava em dobro. Com um alerta ativo no posto, um novo
+  só é enviado se o capitão confirmar que é **outra necessidade** (fica
+  anotado no histórico). Dois alertas diferentes enviados no mesmo instante
+  são ambos guardados.
+
+### OD-38 — Ações sobre o alerta
+
+- **Provisória (implementada):** só os **coordenadores do posto**
+  reconhecem, colocam em atendimento e encerram. Cancelar: o autor ou o
+  coordenador. Encerrar exige o resultado; cancelar exige o motivo. Toda
+  ação exige marcar uma caixa de confirmação e é recusada se o alerta mudou
+  desde que a tela foi aberta (evita reconhecimento acidental ou em dobro).
+  Autoridade e administradores consultam sem agir.
+
+### OD-39 — Registros operacionais (ocorrências)
+
+- **Provisória (implementada):**
+  - registram: guarda-vidas **da equipe do posto** (online);
+  - consultam: a equipe do posto (é o livro do posto, não registro
+    pessoal), coordenadores da área, autoridade e administradores;
+  - categorias e campos: **administradores**, com versões; registros
+    antigos mantêm os campos da época;
+  - não há edição: registro errado é **anulado** (autor ou coordenador, com
+    motivo) e continua visível; um novo registro corrige.
+- Pendente: categorias oficiais; edição em vez de anulação; prazo.
+
+### OD-40 — Ocorrências e alertas sem internet
+
+- Não aprovado (OD-18). **Ocorrências: só online**; sem conexão nada é
+  gravado e os dados ficam na tela. **Alertas: não são enviados sem
+  internet** (nem guardados para depois, para ninguém achar que foram); a
+  página de envio abre offline só para orientar o canal oficial.
+
 ### OD-09 — Entrada offline: evidências
 
 - Hora do aparelho basta? Exigir foto/localização? (afeta LGPD).
@@ -306,15 +350,37 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
 ### OD-11 — Materiais, ocorrências e registros do posto
 
 - Tipos e campos de cada um; inventário ou consumo; dados de vítimas.
+- **Implementado (Prompt 6, provisório — OD-39):** registros operacionais
+  em **categorias configuráveis** (ex.: ocorrência, ação preventiva,
+  águas-vivas), cada uma com até 8 campos simples (texto curto, número,
+  lista de opções, sim/não) + data/hora + descrição. Nenhuma categoria vem
+  pronta: o administrador cria as que forem aprovadas.
+- Pendente: as categorias e os campos oficiais; dados de vítimas (OD-19).
 
 ### OD-12 — Alertas internos
 
 - Tipos, destinatários, quem reconhece e encerra, notificação fora do app
   (push).
+- **Implementado só o alerta de reforço** (Prompt 6). Aviso interno:
+  contador de alertas sem reconhecimento no menu do coordenador e listas
+  que se atualizam a cada **30 segundos** enquanto abertas (consulta
+  periódica). Sem push, e-mail, SMS ou WhatsApp. O aviso é só lembrete: o
+  alerta vale pelo registro no servidor.
 
 ### OD-13 — Alerta de reforço
 
 - Destinatários; fluxo; procedimento quando o capitão está sem internet.
+- **Definido no Prompt 6 e implementado:** o capitão cria; o servidor grava
+  antes de confirmar; os coordenadores do posto veem, **reconhecem**,
+  colocam **em atendimento** e **encerram**; cancelamento e encerramento
+  mantêm o histórico; quem fez cada ação fica registrado.
+- Estados: Aguardando reconhecimento → Reconhecido → Em atendimento →
+  Encerrado; Cancelado a partir de qualquer estado ativo. Encerrado e
+  cancelado são finais (sem reabertura: envia-se um novo alerta).
+- Sem internet: a tela diz que **o alerta não foi enviado** e manda usar o
+  canal oficial de emergência. **Pendente: qual é o canal oficial**
+  (frequência de rádio, telefone) para aparecer na mensagem; hoje o texto é
+  genérico (`NOT_SENT_GUIDANCE` em `src/features/alerts/rules.ts`).
 
 ### OD-14 — Pendências
 
@@ -342,6 +408,9 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
 ### OD-19 — Dados pessoais (LGPD)
 
 - Quais dados de vítimas são coletados; retenção; base legal; quem acessa.
+- **Ocorrências (Prompt 6):** nenhum campo coleta dados de vítimas e a tela
+  avisa para não registrá-los. A descrição é texto livre, então o aviso
+  não impede tudo: definir a regra antes de uso real.
 - **Localização dos guarda-vidas (Prompt 4):** é dado pessoal. Hoje fica só
   no registro de presença (não vai para logs nem para o histórico), é
   visível ao próprio guarda-vidas, ao coordenador do posto, à autoridade e a
