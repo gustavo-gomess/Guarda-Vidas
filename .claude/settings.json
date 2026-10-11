@@ -1,12 +1,15 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
+    "disableBypassPermissionsMode": "disable",
     "allow": [
       "Read",
       "Glob",
       "Grep",
       "Bash(git status)",
       "Bash(git diff)",
-      "Bash(git log:*)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
       "Bash(npm run lint)",
       "Bash(npm run typecheck)",
       "Bash(npm run test:run)",
@@ -14,25 +17,49 @@
       "Bash(npm run format:check)",
       "PowerShell(git status)",
       "PowerShell(git diff)",
-      "PowerShell(git log:*)",
+      "PowerShell(git diff *)",
+      "PowerShell(git log *)",
       "PowerShell(npm run lint)",
       "PowerShell(npm run typecheck)",
       "PowerShell(npm run test:run)",
       "PowerShell(npm run build)",
       "PowerShell(npm run format:check)"
     ],
+    "ask": [
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(npm install *)",
+      "Bash(npm uninstall *)",
+      "Bash(npx prisma *)",
+      "Bash(vercel *)",
+      "PowerShell(git commit *)",
+      "PowerShell(git push *)",
+      "PowerShell(npm install *)",
+      "PowerShell(npm uninstall *)",
+      "PowerShell(npx prisma *)",
+      "PowerShell(vercel *)"
+    ],
     "deny": [
       "Bash(git push --force*)",
       "Bash(git push -f*)",
       "Bash(git reset --hard*)",
+      "Bash(git clean *)",
       "Bash(rm -rf *)",
       "Bash(rm -fr *)",
+      "Bash(npx prisma migrate reset*)",
+      "Bash(npx prisma db push --force-reset*)",
       "PowerShell(git push --force*)",
       "PowerShell(git push -f*)",
       "PowerShell(git reset --hard*)",
-      "PowerShell(Remove-Item -Recurse*)",
+      "PowerShell(git clean *)",
+      "PowerShell(Remove-Item *-Recurse*)",
+      "PowerShell(npx prisma migrate reset*)",
+      "PowerShell(npx prisma db push --force-reset*)",
       "Read(.env)",
-      "Read(.env.*)"
+      "Read(.env.*)",
+      "Read(!.env.example)",
+      "Read(*.pem)",
+      "Read(*.key)"
     ]
   }
 }

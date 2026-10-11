@@ -1,0 +1,22 @@
+# Local development database only. Never use these credentials elsewhere.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: guarda_vidas
+      POSTGRES_PASSWORD: guarda_vidas_dev
+      POSTGRES_DB: guarda_vidas
+    ports:
+      # Bound to localhost so the database is not exposed on the network.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guarda_vidas -d guarda_vidas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db-data:

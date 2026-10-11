@@ -39,6 +39,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# generated Prisma client (recreated by `npm install` / `prisma generate`)
+/src/generated/
+
 # local databases
 *.db
 *.sqlite

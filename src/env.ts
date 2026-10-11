@@ -1,33 +1,19 @@
 import "server-only";
 
-import { z } from "zod";
+import { parseServerEnv, type ServerEnv } from "@/lib/env-schema";
+
+export type { ServerEnv } from "@/lib/env-schema";
+
+let cached: ServerEnv | undefined;
 
 /**
- * Server-side environment variables, validated once at startup.
- * Add every new variable here and document it in .env.example.
- * Import `env` from this module instead of reading process.env directly.
+ * Validated server environment. Use this instead of reading process.env.
+ *
+ * Parsed on first call, not at import time: `next build` imports route
+ * modules, and the build must not require runtime secrets. The server start
+ * (src/instrumentation.ts) calls it to fail fast on invalid configuration.
  */
-const serverEnvSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-});
-
-export type ServerEnv = z.infer<typeof serverEnvSchema>;
-
-function parseEnv(): ServerEnv {
-  const result = serverEnvSchema.safeParse(process.env);
-
-  if (!result.success) {
-    // Only variable names and issues are logged, never the values.
-    console.error(
-      "Invalid environment variables:",
-      z.flattenError(result.error).fieldErrors,
-    );
-    throw new Error("Invalid environment variables. See the log above.");
-  }
-
-  return result.data;
+export function getEnv(): ServerEnv {
+  cached ??= parseServerEnv(process.env);
+  return cached;
 }
-
-export const env = parseEnv();

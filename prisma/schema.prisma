@@ -1,0 +1,117 @@
+// Prisma schema. Business models are added by feature, each change through a
+// reviewed migration (`npm run db:migrate -- --name <change>`).
+// Connection settings live in prisma7.config.ts, not here.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Authentication profile. Captain and administrator are assignments, not
+/// roles (see PostAssignment.isCaptain and User.isAdmin).
+enum Role {
+  AUTHORITY
+  COORDINATOR
+  LIFEGUARD
+}
+
+model User {
+  id                  String    @id @default(uuid()) @db.Uuid
+  /// Login identifier, stored lowercase.
+  username            String    @unique
+  name                String
+  role                Role
+  /// May manage user accounts, posts and coordinator areas.
+  isAdmin             Boolean   @default(false)
+  /// Inactive users cannot sign in; their sessions are revoked.
+  active              Boolean   @default(true)
+  passwordHash        String
+  /// Set for temporary passwords; the user must choose a new one.
+  mustChangePassword  Boolean   @default(true)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  sessions         Session[]
+  coordinatedPosts PostCoordinator[]
+  assignments      PostAssignment[]
+  auditEntries     AuditLog[]        @relation("AuditActor")
+}
+
+model Session {
+  /// SHA-256 of the session token. The token itself is only in the cookie.
+  id                String   @id
+  userId            String   @db.Uuid
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  /// Idle expiry, extended on use up to absoluteExpiresAt.
+  expiresAt         DateTime
+  absoluteExpiresAt DateTime
+
+  @@index([userId])
+}
+
+model Post {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  coordinators PostCoordinator[]
+  assignments  PostAssignment[]
+  auditEntries AuditLog[]
+}
+
+/// A coordinator's area of responsibility.
+model PostCoordinator {
+  postId    String   @db.Uuid
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([postId, userId])
+  @@index([userId])
+}
+
+/// A lifeguard's base assignment to a post. Daily schedules are a later
+/// module and do not change this.
+model PostAssignment {
+  postId    String   @db.Uuid
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isCaptain Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@id([postId, userId])
+  @@index([userId])
+}
+
+/// Append-only change history. Never updated or deleted by the application.
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  createdAt  DateTime @default(now())
+  /// Null only for changes made by the command-line bootstrap.
+  actorId    String?  @db.Uuid
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  action     String
+  entityType String
+  entityId   String
+  /// Post the change belongs to, when it has one.
+  postId     String?  @db.Uuid
+  post       Post?    @relation(fields: [postId], references: [id], onDelete: Restrict)
+  /// Changed fields only. Never contains password hashes or tokens.
+  before     Json?
+  after      Json?
+
+  @@index([entityType, entityId])
+  @@index([postId, createdAt])
+  @@index([actorId, createdAt])
+}
