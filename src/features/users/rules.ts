@@ -59,22 +59,3 @@ export function assignmentsToRemove(newRole: Role): {
     postAssignments: newRole !== "LIFEGUARD",
   };
 }
-
-/** Only the fields that changed, for the audit log. */
-export function changedFields<T extends Record<string, unknown>>(
-  before: T,
-  after: Partial<T>,
-): { before: Partial<T>; after: Partial<T> } | null {
-  const keys = (Object.keys(after) as (keyof T)[]).filter(
-    (key) => after[key] !== undefined && after[key] !== before[key],
-  );
-  if (keys.length === 0) return null;
-  return {
-    before: Object.fromEntries(
-      keys.map((key) => [key, before[key]]),
-    ) as Partial<T>,
-    after: Object.fromEntries(
-      keys.map((key) => [key, after[key]]),
-    ) as Partial<T>,
-  };
-}

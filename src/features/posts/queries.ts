@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  canChangePostStatus,
   canManagePosts,
   canManagePostTeam,
   canViewAllPosts,
@@ -19,8 +20,9 @@ export async function listVisiblePosts(actor: Actor) {
   const ids = [...actor.coordinatedPostIds, ...actor.assignedPostIds];
   return getDb().post.findMany({
     where: canViewAllPosts(actor) ? {} : { id: { in: ids } },
-    select: { id: true, name: true, active: true },
-    orderBy: [{ active: "desc" }, { name: "asc" }],
+    select: { id: true, code: true, name: true, location: true, status: true },
+    // Enum order: operating, suspended, inactive.
+    orderBy: [{ status: "asc" }, { name: "asc" }],
   });
 }
 
@@ -32,8 +34,11 @@ export async function getPostForActor(actor: Actor, postId: string) {
     where: { id: postId },
     select: {
       id: true,
+      code: true,
       name: true,
-      active: true,
+      location: true,
+      notes: true,
+      status: true,
       coordinators: {
         select: { user: { select: { id: true, name: true } } },
         orderBy: { user: { name: "asc" } },
@@ -53,6 +58,8 @@ export async function getPostForActor(actor: Actor, postId: string) {
     ...post,
     canManageTeam: canManagePostTeam(actor, postId),
     canManageCoordinators: canManagePosts(actor),
+    canEditPost: canManagePosts(actor),
+    canChangeStatus: canChangePostStatus(actor, postId),
   };
 }
 
@@ -100,6 +107,7 @@ export async function listPostAuditForActor(actor: Actor, postId: string) {
       entityId: true,
       before: true,
       after: true,
+      reason: true,
       actor: { select: { name: true } },
     },
   });

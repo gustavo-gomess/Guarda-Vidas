@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   canActAsCaptain,
+  canChangePostStatus,
+  canManageAvailabilityWindows,
+  canManageSchedule,
+  canSubmitAvailability,
+  canViewAvailability,
+  canViewPostSchedules,
   canManagePosts,
   canManagePostTeam,
   canManageUsers,
@@ -167,5 +173,57 @@ describe("viewing users (horizontal access)", () => {
   it("authority and admin see everyone", () => {
     expect(canViewUser(authority, lifeguardB)).toBe(true);
     expect(canViewUser(admin, lifeguardB)).toBe(true);
+  });
+});
+
+describe("availability and schedules", () => {
+  const authorityAdmin = actor({ role: "AUTHORITY", isAdmin: true });
+
+  it.each([
+    ["coordinator", coordinatorA, true, false, true],
+    ["admin coordinator", admin, true, false, true],
+    ["authority", authority, false, false, true],
+    ["lifeguard", lifeguardA, false, true, false],
+    ["captain", captainA, false, true, false],
+  ])(
+    "%s: opens windows %s, sends availability %s, sees availability %s",
+    (_label, who, windows, submit, view) => {
+      expect(canManageAvailabilityWindows(who)).toBe(windows);
+      expect(canSubmitAvailability(who)).toBe(submit);
+      expect(canViewAvailability(who)).toBe(view);
+    },
+  );
+
+  it("only the post's coordinator manages its schedule", () => {
+    expect(canManageSchedule(coordinatorA, POST_A)).toBe(true);
+    expect(canManageSchedule(coordinatorA, POST_B)).toBe(false);
+  });
+
+  it.each([
+    ["authority", authority],
+    ["authority with admin access", authorityAdmin],
+    ["admin outside the post's area", admin],
+    ["lifeguard", lifeguardA],
+    ["captain", captainA],
+  ])("the %s cannot change schedules", (_label, who) => {
+    expect(canManageSchedule(who, POST_A)).toBe(false);
+    expect(canManageSchedule(who, POST_B)).toBe(false);
+  });
+
+  it("whole schedules are visible to authority, admins and the coordinator", () => {
+    expect(canViewPostSchedules(authority, POST_B)).toBe(true);
+    expect(canViewPostSchedules(admin, POST_B)).toBe(true);
+    expect(canViewPostSchedules(coordinatorA, POST_A)).toBe(true);
+    expect(canViewPostSchedules(coordinatorA, POST_B)).toBe(false);
+    expect(canViewPostSchedules(lifeguardA, POST_A)).toBe(false);
+    expect(canViewPostSchedules(captainA, POST_A)).toBe(false);
+  });
+
+  it("post status follows team management", () => {
+    expect(canChangePostStatus(coordinatorA, POST_A)).toBe(true);
+    expect(canChangePostStatus(coordinatorA, POST_B)).toBe(false);
+    expect(canChangePostStatus(admin, POST_B)).toBe(true);
+    expect(canChangePostStatus(authority, POST_A)).toBe(false);
+    expect(canChangePostStatus(captainA, POST_A)).toBe(false);
   });
 });

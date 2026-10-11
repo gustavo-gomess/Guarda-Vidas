@@ -2,17 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
-import {
-  assignmentsToRemove,
-  changedFields,
-  checkUserChange,
-} from "@/features/users/rules";
+import { assignmentsToRemove, checkUserChange } from "@/features/users/rules";
 import {
   createUserSchema,
   updateUserSchema,
   userIdSchema,
 } from "@/features/users/schemas";
-import { recordAudit } from "@/lib/audit";
+import { changedFields, recordAudit } from "@/lib/audit";
 import { generateTemporaryPassword, hashPassword } from "@/lib/auth/password";
 import { canManageUsers } from "@/lib/auth/policy";
 import { requireActor } from "@/lib/auth/session";

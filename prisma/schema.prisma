@@ -37,10 +37,15 @@ model User {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  sessions         Session[]
-  coordinatedPosts PostCoordinator[]
-  assignments      PostAssignment[]
-  auditEntries     AuditLog[]        @relation("AuditActor")
+  sessions           Session[]
+  coordinatedPosts   PostCoordinator[]
+  assignments        PostAssignment[]
+  auditEntries       AuditLog[]           @relation("AuditActor")
+  openedWindows      AvailabilityWindow[]
+  availabilities     Availability[]
+  scheduleEntries    ScheduleEntry[]      @relation("ScheduledUser")
+  createdEntries     ScheduleEntry[]      @relation("EntryCreator")
+  confirmedSchedules Schedule[]           @relation("ScheduleConfirmer")
 }
 
 model Session {
@@ -56,15 +61,32 @@ model Session {
   @@index([userId])
 }
 
+/// Operational state of a post. Provisional values (OD-03).
+enum PostStatus {
+  /// In service: schedules and team changes allowed.
+  OPERATING
+  /// Temporarily out of service: no new schedule entries.
+  SUSPENDED
+  /// Deactivated: kept for history only.
+  INACTIVE
+}
+
 model Post {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String   @unique
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String     @id @default(uuid()) @db.Uuid
+  /// Short identifier chosen by the administrator, e.g. "P-01". Uppercase.
+  code      String     @unique
+  name      String     @unique
+  /// Free-text location (beach, reference point).
+  location  String     @default("")
+  /// Information needed for the service, until OD-03 defines fields.
+  notes     String     @default("")
+  status    PostStatus @default(OPERATING)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   coordinators PostCoordinator[]
   assignments  PostAssignment[]
+  schedules    Schedule[]
   auditEntries AuditLog[]
 }
 
@@ -80,8 +102,8 @@ model PostCoordinator {
   @@index([userId])
 }
 
-/// A lifeguard's base assignment to a post. Daily schedules are a later
-/// module and do not change this.
+/// A lifeguard's base assignment to a post (the post's team). Only team
+/// members can be scheduled at the post.
 model PostAssignment {
   postId    String   @db.Uuid
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -110,8 +132,99 @@ model AuditLog {
   /// Changed fields only. Never contains password hashes or tokens.
   before     Json?
   after      Json?
+  /// Justification, required for some changes (e.g. confirmed schedules).
+  reason     String?
 
   @@index([entityType, entityId])
   @@index([postId, createdAt])
   @@index([actorId, createdAt])
+}
+
+enum AvailabilityWindowStatus {
+  /// Lifeguards can send or change their availability.
+  OPEN
+  /// No more changes to availability.
+  CLOSED
+}
+
+/// Three consecutive days for which lifeguards declare availability.
+/// Windows never overlap (checked by the application).
+model AvailabilityWindow {
+  id          String                   @id @default(uuid()) @db.Uuid
+  /// First day; the window covers startDate and the two following days.
+  startDate   DateTime                 @unique @db.Date
+  status      AvailabilityWindowStatus @default(OPEN)
+  createdById String                   @db.Uuid
+  createdBy   User                     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  availabilities Availability[]
+  schedules      Schedule[]
+}
+
+/// Availability sent by a lifeguard for one window ("disponibilidade
+/// enviada"). It is a declaration only: it never becomes a schedule by itself.
+model Availability {
+  windowId    String             @db.Uuid
+  window      AvailabilityWindow @relation(fields: [windowId], references: [id], onDelete: Restrict)
+  userId      String             @db.Uuid
+  user        User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  day1        Boolean
+  day2        Boolean
+  day3        Boolean
+  note        String             @default("")
+  submittedAt DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@id([windowId, userId])
+  @@index([userId])
+}
+
+enum ScheduleStatus {
+  /// Being assembled by the coordinator. Not visible to lifeguards.
+  PROPOSED
+  /// Confirmed by the coordinator and published.
+  CONFIRMED
+  /// Changed after confirmation (each change has a justification).
+  CHANGED
+}
+
+/// Schedule of one post for one availability window.
+model Schedule {
+  id            String             @id @default(uuid()) @db.Uuid
+  postId        String             @db.Uuid
+  post          Post               @relation(fields: [postId], references: [id], onDelete: Restrict)
+  windowId      String             @db.Uuid
+  window        AvailabilityWindow @relation(fields: [windowId], references: [id], onDelete: Restrict)
+  status        ScheduleStatus     @default(PROPOSED)
+  confirmedAt   DateTime?
+  confirmedById String?            @db.Uuid
+  confirmedBy   User?              @relation("ScheduleConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  entries ScheduleEntry[]
+
+  @@unique([postId, windowId])
+  @@index([windowId])
+}
+
+/// One lifeguard at one post on one day.
+model ScheduleEntry {
+  id          String   @id @default(uuid()) @db.Uuid
+  scheduleId  String   @db.Uuid
+  schedule    Schedule @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+  userId      String   @db.Uuid
+  user        User     @relation("ScheduledUser", fields: [userId], references: [id], onDelete: Restrict)
+  /// Operational day (America/Sao_Paulo calendar date).
+  date        DateTime @db.Date
+  createdById String   @db.Uuid
+  createdBy   User     @relation("EntryCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+
+  /// A person is at one post per day, in any schedule state (one shift per
+  /// day; never two posts at the same time).
+  @@unique([userId, date])
+  @@index([scheduleId, date])
 }

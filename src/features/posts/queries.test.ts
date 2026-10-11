@@ -10,8 +10,11 @@ const { getPostForActor, listAssignableUsers, listVisiblePosts } =
 
 const postRow = (id: string) => ({
   id,
+  code: `P-${id.slice(0, 4)}`,
   name: `Posto ${id.slice(0, 4)}`,
-  active: true,
+  location: "",
+  notes: "",
+  status: "OPERATING",
   coordinators: [],
   assignments: [],
 });

@@ -249,6 +249,42 @@ hospedagem.
 
 ---
 
+## D009 — Escalas: conflitos garantidos pelo banco
+
+**Contexto.** Prompt 3: montar e confirmar escalas sem nunca colocar a mesma
+pessoa em dois postos ao mesmo tempo, com histórico e estados separados.
+
+**Decisão.**
+
+- **Regras puras** em `src/features/schedules/rules.ts` (janela, conflito,
+  justificativa, transições de estado), testadas sem banco; as Server
+  Actions só carregam dados e aplicam essas funções.
+- **Conflito no banco:** restrição única `ScheduleEntry(userId, date)`. A
+  verificação da aplicação dá a mensagem clara ("já escalado no posto X");
+  a restrição cobre duas pessoas escalando ao mesmo tempo (erro P2002 vira
+  mensagem de conflito).
+- **Ordem das alterações:** cada ação de escala autoriza pelo posto
+  **lido do banco** (nunca um posto enviado pelo navegador), depois trava a
+  linha da escala (`SELECT … FOR UPDATE`) e relê o estado na transação.
+  Assim, confirmação e alteração simultâneas não se misturam (ex.: incluir
+  alguém sem justificativa em uma escala que acabou de ser confirmada).
+- **Janelas sem sobreposição:** verificação dentro de transação
+  `Serializable`; duas aberturas simultâneas fazem uma falhar.
+- **Datas** como `DATE` + texto `AAAA-MM-DD` no fuso operacional; nada de
+  horário local do servidor.
+- **Estados:** a disponibilidade é uma tabela separada da escala; a escala
+  nasce `PROPOSED` e só `confirmScheduleAction` a publica. Sugestão
+  automática não existe (OD-24).
+
+**Alternativa descartada.** Restrição de exclusão (`EXCLUDE USING gist`)
+para janelas: o Prisma não a representa no schema e geraria divergência
+nas migrações; o volume de janelas não justifica.
+
+**Consequências.** A escala é por dia inteiro: quando turnos tiverem
+horário (OD-05), a restrição única muda para intervalo de horário.
+
+---
+
 ## Decisões pendentes
 
 Decisões de **produto** ficam em `OPEN-DECISIONS.md`. Pendências técnicas:

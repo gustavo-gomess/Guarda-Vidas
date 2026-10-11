@@ -3,14 +3,12 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { ActionForm } from "@/components/ui/action-form";
-import { Field } from "@/components/ui/field";
+import { Field, TextAreaField } from "@/components/ui/field";
 import { Loading, PageShell } from "@/components/ui/page-shell";
 import { UserMenu } from "@/features/auth/components/user-menu";
-import {
-  createPostAction,
-  setPostActiveAction,
-} from "@/features/posts/actions";
+import { createPostAction } from "@/features/posts/actions";
 import { listVisiblePosts } from "@/features/posts/queries";
+import { POST_STATUS_LABELS } from "@/features/posts/status";
 import { canManagePosts } from "@/lib/auth/policy";
 import { requireActor } from "@/lib/auth/session";
 
@@ -31,27 +29,20 @@ async function Content() {
     <>
       <UserMenu actor={actor} />
       <PageShell title="Postos">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Dados, situação, coordenação e equipe são alterados na página de cada
+          posto.
+        </p>
         <ul className="flex flex-col gap-2">
           {posts.map((post) => (
-            <li key={post.id} className="flex flex-wrap items-center gap-3">
+            <li key={post.id} className="flex flex-wrap items-baseline gap-3">
               <Link href={`/postos/${post.id}`} className="underline">
-                {post.name}
+                {post.code} · {post.name}
               </Link>
               <span className="text-sm text-zinc-500">
-                {post.active ? "Ativo" : "Inativo"}
+                {POST_STATUS_LABELS[post.status]}
+                {post.location ? ` · ${post.location}` : ""}
               </span>
-              <ActionForm
-                action={setPostActiveAction}
-                submitLabel={post.active ? "Desativar" : "Reativar"}
-                compact
-              >
-                <input type="hidden" name="postId" value={post.id} />
-                <input
-                  type="hidden"
-                  name="active"
-                  value={post.active ? "false" : "true"}
-                />
-              </ActionForm>
             </li>
           ))}
           {posts.length === 0 ? (
@@ -60,7 +51,7 @@ async function Content() {
             </li>
           ) : null}
         </ul>
-        <section className="flex max-w-sm flex-col gap-3">
+        <section className="flex max-w-md flex-col gap-3">
           <h2 className="text-lg font-semibold">Novo posto</h2>
           <ActionForm
             action={createPostAction}
@@ -68,7 +59,19 @@ async function Content() {
             successMessage="Posto criado."
             className="flex flex-col gap-4"
           >
-            <Field label="Nome" name="name" required />
+            <Field
+              label="Identificador (ex.: P-01)"
+              name="code"
+              required
+              maxLength={20}
+            />
+            <Field label="Nome" name="name" required maxLength={80} />
+            <Field label="Localização" name="location" maxLength={200} />
+            <TextAreaField
+              label="Informações para o serviço"
+              name="notes"
+              maxLength={1000}
+            />
           </ActionForm>
         </section>
       </PageShell>

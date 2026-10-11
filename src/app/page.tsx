@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { Loading, PageShell } from "@/components/ui/page-shell";
 import { UserMenu } from "@/features/auth/components/user-menu";
 import { listVisiblePosts } from "@/features/posts/queries";
+import { POST_STATUS_LABELS } from "@/features/posts/status";
 import { ROLE_LABELS } from "@/lib/auth/policy";
 import { requireActor } from "@/lib/auth/session";
 
@@ -38,9 +39,11 @@ async function Dashboard() {
               {posts.map((post) => (
                 <li key={post.id}>
                   <Link href={`/postos/${post.id}`} className="underline">
-                    {post.name}
+                    {post.code} · {post.name}
                   </Link>
-                  {post.active ? "" : " (inativo)"}
+                  {post.status === "OPERATING"
+                    ? ""
+                    : ` (${POST_STATUS_LABELS[post.status].toLowerCase()})`}
                   {actor.captainPostIds.includes(post.id) ? " · capitão" : ""}
                 </li>
               ))}

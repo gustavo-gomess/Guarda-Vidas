@@ -26,14 +26,21 @@ Actions. Veja `ROADMAP.md`.
 
 ## Modelo de dados atual
 
-| Tabela            | Para quê                                                                                                                                           |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `User`            | Conta individual: usuário, nome, perfil (`AUTHORITY`, `COORDINATOR`, `LIFEGUARD`), `isAdmin`, `active`, hash da senha, troca obrigatória, bloqueio |
-| `Session`         | Sessões abertas (id = SHA-256 do token), expiração ociosa e absoluta                                                                               |
-| `Post`            | Posto (nome, ativo)                                                                                                                                |
-| `PostCoordinator` | Área do coordenador (postos que coordena)                                                                                                          |
-| `PostAssignment`  | Equipe base do posto; `isCaptain` marca o capitão                                                                                                  |
-| `AuditLog`        | Histórico só de inserção (autor, ação, entidade, posto, antes/depois); triggers impedem alteração                                                  |
+| Tabela               | Para quê                                                                                                                                           |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `User`               | Conta individual: usuário, nome, perfil (`AUTHORITY`, `COORDINATOR`, `LIFEGUARD`), `isAdmin`, `active`, hash da senha, troca obrigatória, bloqueio |
+| `Session`            | Sessões abertas (id = SHA-256 do token), expiração ociosa e absoluta                                                                               |
+| `Post`               | Posto: identificador (`code`), nome, localização, informações, situação (`OPERATING`, `SUSPENDED`, `INACTIVE`)                                     |
+| `PostCoordinator`    | Área do coordenador (postos que coordena)                                                                                                          |
+| `PostAssignment`     | Equipe base do posto; `isCaptain` marca o capitão                                                                                                  |
+| `AuditLog`           | Histórico só de inserção (autor, ação, entidade, posto, antes/depois, justificativa); triggers impedem alteração                                   |
+| `AvailabilityWindow` | Janela de três dias (`startDate`), aberta ou encerrada; quem abriu                                                                                 |
+| `Availability`       | Disponibilidade enviada por um guarda-vidas para uma janela (sim/não por dia, observação)                                                          |
+| `Schedule`           | Escala de um posto para uma janela: `PROPOSED` → `CONFIRMED` → `CHANGED`; quem confirmou e quando                                                  |
+| `ScheduleEntry`      | Um guarda-vidas em um posto em um dia. **Único por (pessoa, dia)** no banco: ninguém fica em dois postos no mesmo dia                              |
+
+Datas operacionais (janelas e escalas) são colunas `DATE`, tratadas como
+texto `AAAA-MM-DD` no calendário de `America/Sao_Paulo` (`src/lib/dates.ts`).
 
 ## Autenticação e autorização
 
@@ -52,30 +59,36 @@ cookie (token) ──► getCurrentSession() ──► validateSession() ──�
                                   → transação + recordAudit
 ```
 
-| Arquivo                             | Responsabilidade                                      |
-| ----------------------------------- | ----------------------------------------------------- |
-| `src/lib/auth/password.ts`          | Hash `scrypt`, verificação, senha temporária          |
-| `src/lib/auth/tokens.ts`            | Token de sessão e seu hash                            |
-| `src/lib/auth/auth-service.ts`      | Regras de login e sessão (puras, testadas)            |
-| `src/lib/auth/prisma-auth-store.ts` | Implementação Prisma do `AuthStore`                   |
-| `src/lib/auth/session.ts`           | Cookies, `getCurrentSession`, `requireActor`          |
-| `src/lib/auth/policy.ts`            | Todas as regras de permissão (puras, testadas)        |
-| `src/lib/audit.ts`                  | `recordAudit` (mesma transação, sem campos sensíveis) |
-| `src/features/auth/`                | Login, logout, troca de senha                         |
-| `src/features/users/`               | Administração de contas                               |
-| `src/features/posts/`               | Postos, áreas de coordenação, equipe e capitão        |
-| `scripts/admin.ts`                  | Primeiro administrador e recuperação de admin         |
+| Arquivo                             | Responsabilidade                                         |
+| ----------------------------------- | -------------------------------------------------------- |
+| `src/lib/auth/password.ts`          | Hash `scrypt`, verificação, senha temporária             |
+| `src/lib/auth/tokens.ts`            | Token de sessão e seu hash                               |
+| `src/lib/auth/auth-service.ts`      | Regras de login e sessão (puras, testadas)               |
+| `src/lib/auth/prisma-auth-store.ts` | Implementação Prisma do `AuthStore`                      |
+| `src/lib/auth/session.ts`           | Cookies, `getCurrentSession`, `requireActor`             |
+| `src/lib/auth/policy.ts`            | Todas as regras de permissão (puras, testadas)           |
+| `src/lib/audit.ts`                  | `recordAudit` (mesma transação, sem campos sensíveis)    |
+| `src/features/auth/`                | Login, logout, troca de senha                            |
+| `src/features/users/`               | Administração de contas                                  |
+| `src/features/posts/`               | Postos, áreas de coordenação, equipe e capitão           |
+| `src/features/availability/`        | Janelas e disponibilidade                                |
+| `src/features/schedules/`           | Regras de escala (puras), montagem, confirmação, filtros |
+| `scripts/admin.ts`                  | Primeiro administrador e recuperação de admin            |
 
 ### Rotas
 
-| Rota                                                           | Quem acessa                                                               |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `/login`                                                       | Público                                                                   |
-| `/`                                                            | Qualquer usuário autenticado (vê os postos permitidos)                    |
-| `/conta/senha`                                                 | Usuário autenticado (única liberada com senha temporária)                 |
-| `/postos/[postId]`                                             | Quem pode ver o posto; gestão de equipe para coordenador do posto e admin |
-| `/admin/usuarios`, `/admin/usuarios/[userId]`, `/admin/postos` | Somente administradores (404 para os demais)                              |
-| `/api/health`                                                  | Público (sem dados)                                                       |
+| Rota                                                           | Quem acessa                                                                                   |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `/login`                                                       | Público                                                                                       |
+| `/`                                                            | Qualquer usuário autenticado (vê os postos permitidos)                                        |
+| `/conta/senha`                                                 | Usuário autenticado (única liberada com senha temporária)                                     |
+| `/postos/[postId]`                                             | Quem pode ver o posto; gestão de equipe para coordenador do posto e admin                     |
+| `/admin/usuarios`, `/admin/usuarios/[userId]`, `/admin/postos` | Somente administradores (404 para os demais)                                                  |
+| `/disponibilidade`                                             | Guarda-vidas envia a sua; coordenador abre/encerra janelas; autoridade consulta               |
+| `/disponibilidade/[windowId]`                                  | Coordenador (sua área) e autoridade; 404 para guarda-vidas                                    |
+| `/escalas`                                                     | Todos: guarda-vidas vê só os próprios dias publicados; filtros por data, posto e profissional |
+| `/escalas/[scheduleId]`                                        | Coordenador do posto (edita e confirma); autoridade e admin (consulta); 404 para os demais    |
+| `/api/health`                                                  | Público (sem dados)                                                                           |
 
 ### Recursos do Next.js habilitados
 

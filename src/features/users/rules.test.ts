@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   assignmentsToRemove,
-  changedFields,
   checkUserChange,
   type UserState,
 } from "@/features/users/rules";
+import { changedFields } from "@/lib/audit";
 
 const adminTarget: UserState = {
   id: "admin-1",

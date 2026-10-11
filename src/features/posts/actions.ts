@@ -3,13 +3,15 @@
 import { revalidatePath } from "next/cache";
 
 import {
-  createPostSchema,
+  postDataSchema,
   postMemberSchema,
   setCaptainSchema,
-  setPostActiveSchema,
+  setPostStatusSchema,
+  updatePostSchema,
 } from "@/features/posts/schemas";
-import { recordAudit } from "@/lib/audit";
+import { changedFields, recordAudit } from "@/lib/audit";
 import {
+  canChangePostStatus,
   canManagePosts,
   canManagePostTeam,
   type Actor,
@@ -35,10 +37,45 @@ function denied(actor: Actor, action: string, postId?: string) {
 function refresh(postId?: string) {
   revalidatePath("/admin/postos");
   revalidatePath("/");
+  revalidatePath("/escalas");
   if (postId) revalidatePath(`/postos/${postId}`);
 }
 
-// --- Posts (administrators) -------------------------------------------------
+// --- Posts (administrators; status also by the post's coordinators) --------
+
+const DUPLICATE_MESSAGE = "Já existe um posto com este código ou nome.";
+
+function readPostData(formData: FormData) {
+  return {
+    code: formData.get("code"),
+    name: formData.get("name"),
+    location: formData.get("location") ?? "",
+    notes: formData.get("notes") ?? "",
+  };
+}
+
+/** Field errors for a code or name already used by another post. */
+async function duplicateFields(
+  data: { code: string; name: string },
+  exceptPostId?: string,
+): Promise<ActionResult | null> {
+  const clashes = await getDb().post.findMany({
+    where: {
+      OR: [{ code: data.code }, { name: data.name }],
+      ...(exceptPostId ? { id: { not: exceptPostId } } : {}),
+    },
+    select: { code: true, name: true },
+  });
+  if (clashes.length === 0) return null;
+  const fieldErrors: Record<string, string[]> = {};
+  if (clashes.some((post) => post.code === data.code)) {
+    fieldErrors.code = ["Já existe um posto com este código."];
+  }
+  if (clashes.some((post) => post.name === data.name)) {
+    fieldErrors.name = ["Já existe um posto com este nome."];
+  }
+  return { ok: false, error: "Confira os campos destacados.", fieldErrors };
+}
 
 export async function createPostAction(
   _previous: ActionResult | null,
@@ -47,8 +84,11 @@ export async function createPostAction(
   const actor = await requireActor();
   if (!canManagePosts(actor)) return denied(actor, "post.create");
 
-  const parsed = createPostSchema.safeParse({ name: formData.get("name") });
+  const parsed = postDataSchema.safeParse(readPostData(formData));
   if (!parsed.success) return invalidInput(parsed.error);
+
+  const duplicate = await duplicateFields(parsed.data);
+  if (duplicate) return duplicate;
 
   try {
     await getDb().$transaction(async (tx) => {
@@ -59,17 +99,12 @@ export async function createPostAction(
         entityType: "Post",
         entityId: post.id,
         postId: post.id,
-        after: { name: post.name, active: true },
+        after: { ...parsed.data, status: post.status },
       });
     });
   } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      return {
-        ok: false,
-        error: "Confira os campos destacados.",
-        fieldErrors: { name: ["Já existe um posto com este nome."] },
-      };
-    }
+    // Another administrator created the same code or name meanwhile.
+    if (isUniqueConstraintError(error)) return fail(DUPLICATE_MESSAGE);
     throw error;
   }
 
@@ -77,38 +112,88 @@ export async function createPostAction(
   return ok();
 }
 
-export async function setPostActiveAction(
+export async function updatePostAction(
   _previous: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
   const actor = await requireActor();
-  if (!canManagePosts(actor)) return denied(actor, "post.set_active");
+  if (!canManagePosts(actor)) return denied(actor, "post.update");
 
-  const parsed = setPostActiveSchema.safeParse({
+  const parsed = updatePostSchema.safeParse({
     postId: formData.get("postId"),
-    active: formData.get("active"),
+    ...readPostData(formData),
   });
-  if (!parsed.success) return fail("Dados inválidos.");
-  const { postId, active } = parsed.data;
+  if (!parsed.success) return invalidInput(parsed.error);
+  const { postId, ...data } = parsed.data;
 
   const db = getDb();
   const post = await db.post.findUnique({
     where: { id: postId },
-    select: { active: true },
+    select: { code: true, name: true, location: true, notes: true },
   });
   if (!post) return fail("Posto não encontrado.");
-  if (post.active === active) return ok();
+
+  const changes = changedFields(post, data);
+  if (!changes) return ok();
+
+  const duplicate = await duplicateFields(data, postId);
+  if (duplicate) return duplicate;
+
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.post.update({ where: { id: postId }, data });
+      await recordAudit(tx, {
+        actorId: actor.id,
+        action: "post.update",
+        entityType: "Post",
+        entityId: postId,
+        postId,
+        ...changes,
+      });
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) return fail(DUPLICATE_MESSAGE);
+    throw error;
+  }
+
+  refresh(postId);
+  return ok();
+}
+
+export async function setPostStatusAction(
+  _previous: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const actor = await requireActor();
+  const parsed = setPostStatusSchema.safeParse({
+    postId: formData.get("postId"),
+    status: formData.get("status"),
+  });
+  if (!parsed.success) return fail("Dados inválidos.");
+  const { postId, status } = parsed.data;
+
+  if (!canChangePostStatus(actor, postId)) {
+    return denied(actor, "post.status", postId);
+  }
+
+  const db = getDb();
+  const post = await db.post.findUnique({
+    where: { id: postId },
+    select: { status: true },
+  });
+  if (!post) return fail("Posto não encontrado.");
+  if (post.status === status) return ok();
 
   await db.$transaction(async (tx) => {
-    await tx.post.update({ where: { id: postId }, data: { active } });
+    await tx.post.update({ where: { id: postId }, data: { status } });
     await recordAudit(tx, {
       actorId: actor.id,
       action: "post.update",
       entityType: "Post",
       entityId: postId,
       postId,
-      before: { active: post.active },
-      after: { active },
+      before: { status: post.status },
+      after: { status },
     });
   });
 
@@ -219,13 +304,15 @@ export async function addLifeguardAction(
 
   const db = getDb();
   const [post, user] = await Promise.all([
-    db.post.findUnique({ where: { id: postId }, select: { active: true } }),
+    db.post.findUnique({ where: { id: postId }, select: { status: true } }),
     db.user.findUnique({
       where: { id: userId },
       select: { role: true, active: true },
     }),
   ]);
-  if (!post || !post.active) return fail("Posto não encontrado ou inativo.");
+  if (!post || post.status === "INACTIVE") {
+    return fail("Posto não encontrado ou desativado.");
+  }
   if (!user || !user.active || user.role !== "LIFEGUARD") {
     return fail("Escolha um guarda-vidas ativo.");
   }

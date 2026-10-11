@@ -32,9 +32,19 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
 
 ### OD-03 — Atributos do posto
 
-- Hoje o posto tem só nome e situação (ativo/inativo).
-- Pendente: localização, faixa de praia, horário de funcionamento,
-  temporada, materiais fixos.
+- O pedido (Prompt 3) fala em "identificador, nome, localização, estado
+  operacional e dados necessários ao serviço", sem detalhar.
+- **Provisória (implementada):** identificador curto único (ex.: `P-01`,
+  maiúsculas), nome único, localização em texto livre, "informações para o
+  serviço" em texto livre e situação com três valores: **em operação**,
+  **fora de operação temporariamente** e **desativado**. Só posto em
+  operação recebe escala; desativado não recebe equipe nova. O
+  administrador cadastra e edita; a situação também pode ser mudada pelo
+  coordenador do posto.
+- Postos existentes antes da mudança receberam um identificador gerado
+  (`P-` + início do id), que o administrador pode trocar.
+- Pendente: campos estruturados (faixa de praia, horário de funcionamento,
+  temporada, materiais fixos) e os valores definitivos da situação.
 
 ### OD-04 — Capitão do posto
 
@@ -46,7 +56,8 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
   Único poder extra hoje: `canActAsCaptain` (usado pelo futuro alerta de
   reforço).
 - Impacto de "capitão por escala": o vínculo passa a ser por dia, no módulo
-  de escalas.
+  de escalas. **O módulo de escalas foi feito sem isso:** o capitão continua
+  fixo por posto.
 
 ### OD-21 — Quem administra usuários?
 
@@ -98,6 +109,9 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
 
 - Horários permitidos; turno que cruza a meia-noite; esquecimento de saída;
   quem corrige; fuso (provável `America/Sao_Paulo`).
+- **Já usado provisoriamente:** o dia operacional das janelas e escalas é o
+  calendário de `America/Sao_Paulo` (`src/lib/dates.ts`). A escala é por
+  dia inteiro, sem horário.
 
 ### OD-06 — Checklist na assunção
 
@@ -106,8 +120,66 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
 
 ### OD-08 — Disponibilidade em janelas de três dias
 
-- Quem informa a disponibilidade; janela fixa ou móvel; prazo; como vira
-  escala.
+- Definido no pedido (Prompt 3): o coordenador abre janelas de três dias
+  consecutivos; cada guarda-vidas registra a própria disponibilidade; a
+  coordenação visualiza; a escala é montada à parte e confirmada pelo
+  coordenador. Disponibilidade nunca vira escala sozinha.
+- **Provisória (implementada):**
+  - a janela é **única para todos os postos** (a disponibilidade é da
+    pessoa, não do posto) e **qualquer coordenador** abre, encerra ou
+    reabre;
+  - começa hoje ou depois; **janelas não se sobrepõem**; janelas seguidas
+    são permitidas;
+  - não há prazo automático: a janela fica aberta até um coordenador
+    encerrá-la; enquanto aberta, o guarda-vidas pode alterar a resposta;
+  - a resposta é sim/não para cada um dos três dias, com observação
+    opcional; quem não respondeu aparece como "não enviou".
+- Pendente: prazo de envio, lembretes, janela por região/posto.
+
+### OD-24 — Sugestão automática de escala
+
+- O pedido diz "caso isso tenha sido aprovado nos requisitos". **Não foi.**
+- **Não implementada.** A escala é montada só manualmente. Se aprovada, a
+  sugestão deve gerar uma **proposta** (nunca confirmada automaticamente) e
+  precisa de critérios: rodízio, folgas, número mínimo por posto,
+  preferência de posto.
+
+### OD-25 — Justificativas e dias passados na escala
+
+- O pedido pede "justificativa quando necessária", sem dizer quando.
+- **Provisória (implementada):** justificativa (mínimo de 5 caracteres) é
+  obrigatória para:
+  - incluir ou retirar alguém de uma escala **já confirmada** (a escala
+    passa a "alterada após confirmação");
+  - escalar quem **não declarou disponibilidade** para o dia (indisponível
+    ou não enviou). O coordenador pode fazer isso, mas fica registrado.
+- Dias que **já passaram** não podem ser alterados na escala.
+- Pendente: se alterar escala confirmada deve avisar o guarda-vidas, e se
+  dias passados precisam de correção (por quem).
+
+### OD-26 — Quem pode ser escalado em um posto
+
+- **Provisória (implementada):** só guarda-vidas **ativos da equipe do
+  posto**. Para escalar alguém de fora, o coordenador primeiro o adiciona à
+  equipe. Um guarda-vidas fica em **um posto por dia** (regra aprovada de um
+  turno por dia + "nunca dois postos simultaneamente"), em qualquer estado
+  de escala: uma proposta já "reserva" a pessoa naquele dia.
+- Não há número mínimo ou máximo de guarda-vidas por posto e dia.
+- Retirar alguém da equipe ou desativá-lo **não** apaga escalas já feitas;
+  a página da escala mostra "(inativo)".
+- Pendente: efetivo mínimo por posto; reforço vindo de outra equipe; turnos
+  menores que um dia (depende de OD-05).
+
+### OD-27 — Quem consulta a escala
+
+- **Provisória (implementada):**
+  - guarda-vidas: **só os próprios dias**, e só de escalas confirmadas ou
+    alteradas; não vê propostas nem a escala dos colegas;
+  - coordenador: escalas e disponibilidade dos postos da sua área, em
+    qualquer estado; só ele monta, confirma e altera;
+  - autoridade superior e administradores: consultam tudo, inclusive
+    propostas, **sem editar** (ser administrador não dá poder sobre escala).
+- Pendente: o guarda-vidas deve ver quem mais está escalado no seu posto?
 
 ### OD-09 — Entrada offline: evidências
 

@@ -24,6 +24,10 @@ estiver concluída e as decisões de produto bloqueantes, aprovadas.
       atribuições, postos e áreas de coordenação, auditoria imutável,
       script do primeiro administrador. Regras provisórias em
       `OPEN-DECISIONS.md`.
+- [x] **Postos, equipes, disponibilidade e escalas**: cadastro de postos
+      com situação operacional, janelas de três dias, disponibilidade,
+      montagem manual, confirmação, alteração com justificativa, filtros e
+      histórico. Regras provisórias OD-03, OD-08, OD-24 a OD-27.
 
 ## Pendente da etapa de requisitos
 
@@ -32,6 +36,7 @@ estiver concluída e as decisões de produto bloqueantes, aprovadas.
 - [ ] `IMPLEMENTATION-PLAN.md` — ordem de execução dos módulos.
 - [ ] Confirmar as decisões provisórias de autenticação (OD-01, 02, 04,
       07, 21, 22, 23).
+- [ ] Confirmar as decisões provisórias de escalas (OD-03, 08, 24 a 27).
 
 ## Próximas fases técnicas
 
@@ -47,8 +52,8 @@ estiver concluída e as decisões de produto bloqueantes, aprovadas.
 
 ## Pendências operacionais
 
-- [ ] Commits das etapas de padronização, requisitos e fundação (aguardando
-      aprovação).
+- [x] Commits das etapas de padronização, requisitos, fundação e
+      autenticação (`d618768`, `45dbe83`).
 - [ ] Primeiro push para o GitHub (aguardando aprovação).
 - [ ] Conferir se o e-mail do Git local corresponde à conta GitHub.
 - [ ] Docker Desktop não inicia nesta máquina ("unable to start"; a VM do

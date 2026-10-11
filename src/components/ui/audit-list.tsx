@@ -10,6 +10,15 @@ const ACTION_LABELS: Record<string, string> = {
   "post.assignment_remove": "Guarda-vidas removido",
   "post.captain_set": "Capitão definido",
   "post.captain_unset": "Capitão retirado",
+  "availability_window.open": "Janela de disponibilidade aberta",
+  "availability_window.close": "Janela de disponibilidade encerrada",
+  "availability_window.reopen": "Janela de disponibilidade reaberta",
+  "availability.submit": "Disponibilidade enviada",
+  "availability.update": "Disponibilidade alterada",
+  "schedule.create": "Escala proposta criada",
+  "schedule.entry_add": "Guarda-vidas escalado",
+  "schedule.entry_remove": "Guarda-vidas retirado da escala",
+  "schedule.confirm": "Escala confirmada",
 };
 
 type AuditEntryView = {
@@ -18,6 +27,7 @@ type AuditEntryView = {
   action: string;
   before: unknown;
   after: unknown;
+  reason?: string | null;
   actor: { name: string } | null;
 };
 
@@ -57,6 +67,11 @@ export function AuditList({ entries }: { entries: AuditEntryView[] }) {
               {entry.before ? `antes: ${describe(entry.before)}` : ""}
               {entry.before && entry.after ? " → " : ""}
               {entry.after ? `depois: ${describe(entry.after)}` : ""}
+            </p>
+          ) : null}
+          {entry.reason ? (
+            <p className="text-zinc-600 dark:text-zinc-400">
+              Justificativa: {entry.reason}
             </p>
           ) : null}
         </li>

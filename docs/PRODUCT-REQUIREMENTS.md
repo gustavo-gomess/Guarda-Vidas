@@ -1,7 +1,8 @@
 # Requisitos do produto
 
 > Sistema de gestão de postos de guarda-vidas.
-> Estado em 2026-10-10. **Nenhum requisito está implementado.**
+> Estado em 2026-10-10. Implementados: contas e permissões (RF-01) e
+> equipes, disponibilidade e escalas (RF-08), com regras provisórias.
 >
 > Este documento lista apenas requisitos **fornecidos pelo responsável pelo
 > produto**. Tudo o que não foi informado está marcado como dúvida e
@@ -87,8 +88,13 @@ e posto (regra do `CLAUDE.md`).
 - O coordenador gerencia equipes.
 - Gerencia a disponibilidade em **janelas de três dias**.
 - Gerencia escalas.
-- Em aberto: quem informa a disponibilidade, como a janela avança, regras de
-  montagem da escala — OD-08.
+- Detalhado no Prompt 3: janelas de três dias abertas pelo coordenador;
+  cada guarda-vidas envia a própria disponibilidade; montagem manual;
+  confirmação sempre pelo coordenador; estados separados (disponibilidade
+  enviada, escala proposta, confirmada, alterada); histórico com
+  justificativa; nunca dois postos ao mesmo tempo.
+- Em aberto: prazo da janela, sugestão automática, efetivo mínimo,
+  visibilidade da escala dos colegas — OD-08, OD-24 a OD-27.
 
 ### RF-09 — Alertas internos
 

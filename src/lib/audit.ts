@@ -13,11 +13,20 @@ export type AuditEntry = {
   /** Null only for the command-line bootstrap. */
   actorId: string | null;
   action: string;
-  entityType: "User" | "Post" | "PostCoordinator" | "PostAssignment";
+  entityType:
+    | "User"
+    | "Post"
+    | "PostCoordinator"
+    | "PostAssignment"
+    | "AvailabilityWindow"
+    | "Availability"
+    | "Schedule";
   entityId: string;
   postId?: string | null;
   before?: Record<string, unknown> | null;
   after?: Record<string, unknown> | null;
+  /** Justification given by the author, when the change requires one. */
+  reason?: string | null;
 };
 
 function clean(
@@ -48,6 +57,26 @@ export async function recordAudit(
       postId: entry.postId ?? null,
       before: clean(entry.before),
       after: clean(entry.after),
+      reason: entry.reason?.trim() || null,
     },
   });
+}
+
+/** Only the fields that changed, for the audit log. */
+export function changedFields<T extends Record<string, unknown>>(
+  before: T,
+  after: Partial<T>,
+): { before: Partial<T>; after: Partial<T> } | null {
+  const keys = (Object.keys(after) as (keyof T)[]).filter(
+    (key) => after[key] !== undefined && after[key] !== before[key],
+  );
+  if (keys.length === 0) return null;
+  return {
+    before: Object.fromEntries(
+      keys.map((key) => [key, before[key]]),
+    ) as Partial<T>,
+    after: Object.fromEntries(
+      keys.map((key) => [key, after[key]]),
+    ) as Partial<T>,
+  };
 }

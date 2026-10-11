@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
@@ -10,6 +11,8 @@ import {
   removeCoordinatorAction,
   removeLifeguardAction,
   setCaptainAction,
+  setPostStatusAction,
+  updatePostAction,
 } from "@/features/posts/actions";
 import {
   getPostForActor,
@@ -17,7 +20,12 @@ import {
   listPostAuditForActor,
 } from "@/features/posts/queries";
 import { postIdSchema } from "@/features/posts/schemas";
+import {
+  POST_STATUS_LABELS,
+  POST_STATUS_OPTIONS,
+} from "@/features/posts/status";
 import { AuditList } from "@/components/ui/audit-list";
+import { Field, SelectField, TextAreaField } from "@/components/ui/field";
 import { requireActor } from "@/lib/auth/session";
 
 export default function PostPage({ params }: PageProps<"/postos/[postId]">) {
@@ -47,7 +55,79 @@ async function Content({ params }: { params: Promise<{ postId: string }> }) {
   return (
     <>
       <UserMenu actor={actor} />
-      <PageShell title={`Posto ${post.name}${post.active ? "" : " (inativo)"}`}>
+      <PageShell title={`${post.code} · ${post.name}`}>
+        <section className="flex flex-col gap-2">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+            <dt className="font-medium">Situação</dt>
+            <dd>{POST_STATUS_LABELS[post.status]}</dd>
+            <dt className="font-medium">Localização</dt>
+            <dd>{post.location || "Não informada"}</dd>
+            <dt className="font-medium">Informações</dt>
+            <dd className="whitespace-pre-line">{post.notes || "Nenhuma"}</dd>
+          </dl>
+          <Link href={`/escalas?posto=${post.id}`} className="underline">
+            Ver escalas deste posto
+          </Link>
+          {post.canChangeStatus ? (
+            <ActionForm
+              action={setPostStatusAction}
+              submitLabel="Alterar situação"
+              successMessage="Situação alterada."
+              compact
+              className="flex flex-wrap items-end gap-2"
+            >
+              <input type="hidden" name="postId" value={post.id} />
+              <SelectField
+                label="Situação operacional"
+                name="status"
+                defaultValue={post.status}
+                options={POST_STATUS_OPTIONS}
+              />
+            </ActionForm>
+          ) : null}
+          {post.canEditPost ? (
+            <details className="max-w-md">
+              <summary className="cursor-pointer text-sm underline">
+                Editar dados do posto
+              </summary>
+              <ActionForm
+                action={updatePostAction}
+                submitLabel="Salvar dados"
+                successMessage="Dados salvos."
+                className="mt-3 flex flex-col gap-4"
+              >
+                <input type="hidden" name="postId" value={post.id} />
+                <Field
+                  label="Identificador"
+                  name="code"
+                  defaultValue={post.code}
+                  required
+                  maxLength={20}
+                />
+                <Field
+                  label="Nome"
+                  name="name"
+                  defaultValue={post.name}
+                  required
+                  maxLength={80}
+                />
+                <Field
+                  label="Localização"
+                  name="location"
+                  defaultValue={post.location}
+                  maxLength={200}
+                />
+                <TextAreaField
+                  label="Informações para o serviço"
+                  name="notes"
+                  defaultValue={post.notes}
+                  maxLength={1000}
+                />
+              </ActionForm>
+            </details>
+          ) : null}
+        </section>
+
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-semibold">Coordenação</h2>
           {post.coordinators.length === 0 ? (
@@ -141,7 +221,7 @@ async function Content({ params }: { params: Promise<{ postId: string }> }) {
             </ul>
           )}
           {post.canManageTeam &&
-          post.active &&
+          post.status !== "INACTIVE" &&
           candidates &&
           candidates.lifeguards.length > 0 ? (
             <ActionForm

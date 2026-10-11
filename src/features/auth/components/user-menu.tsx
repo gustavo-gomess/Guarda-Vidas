@@ -10,6 +10,12 @@ export function UserMenu({ actor }: { actor: Actor }) {
         <Link href="/" className="font-semibold">
           Guarda-Vidas
         </Link>
+        <Link href="/escalas" className="underline">
+          Escalas
+        </Link>
+        <Link href="/disponibilidade" className="underline">
+          Disponibilidade
+        </Link>
         {actor.isAdmin ? (
           <>
             <Link href="/admin/usuarios" className="underline">

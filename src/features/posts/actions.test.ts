@@ -26,12 +26,13 @@ const {
   createPostAction,
   removeLifeguardAction,
   setCaptainAction,
+  setPostStatusAction,
   addCoordinatorAction,
 } = await import("@/features/posts/actions");
 
 function fakeDb() {
   const tx = {
-    post: { create: vi.fn() },
+    post: { create: vi.fn(), update: vi.fn() },
     postAssignment: {
       findUnique: vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue([]),
@@ -47,7 +48,10 @@ function fakeDb() {
   };
   const db = {
     post: {
-      findUnique: vi.fn().mockResolvedValue({ id: POST_A, active: true }),
+      findUnique: vi
+        .fn()
+        .mockResolvedValue({ id: POST_A, status: "OPERATING" }),
+      findMany: vi.fn().mockResolvedValue([]),
     },
     user: {
       findUnique: vi
@@ -163,6 +167,13 @@ describe("captain is an assignment set by an authorized user", () => {
   });
 });
 
+const newPost = form({
+  code: "p-09",
+  name: "Posto 9",
+  location: "Praia Central",
+  notes: "",
+});
+
 describe("post and area administration is admin-only", () => {
   it.each([
     ["authority", actors.authority],
@@ -172,9 +183,7 @@ describe("post and area administration is admin-only", () => {
     "denies creating posts and coordinator areas to the %s",
     async (_label, who) => {
       mocks.requireActor.mockResolvedValue(who);
-      expect((await createPostAction(null, form({ name: "Posto 9" }))).ok).toBe(
-        false,
-      );
+      expect((await createPostAction(null, newPost)).ok).toBe(false);
       expect(
         (
           await addCoordinatorAction(
@@ -189,14 +198,88 @@ describe("post and area administration is admin-only", () => {
 
   it("allows the administrator and audits the creation", async () => {
     mocks.requireActor.mockResolvedValue(actors.admin);
-    tx.post.create.mockResolvedValue({ id: POST_B, name: "Posto 9" });
-    const result = await createPostAction(null, form({ name: "Posto 9" }));
+    tx.post.create.mockResolvedValue({ id: POST_B, status: "OPERATING" });
+    const result = await createPostAction(null, newPost);
     expect(result.ok).toBe(true);
+    // The code is normalized to uppercase.
+    expect(tx.post.create).toHaveBeenCalledWith({
+      data: {
+        code: "P-09",
+        name: "Posto 9",
+        location: "Praia Central",
+        notes: "",
+      },
+    });
     expect(tx.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         action: "post.create",
         actorId: actors.admin.id,
       }),
     });
+  });
+
+  it("points to the duplicated code or name", async () => {
+    mocks.requireActor.mockResolvedValue(actors.admin);
+    db.post.findMany.mockResolvedValue([{ code: "P-09", name: "Outro" }]);
+    const result = await createPostAction(null, newPost);
+    expect(result).toMatchObject({
+      ok: false,
+      fieldErrors: { code: ["Já existe um posto com este código."] },
+    });
+    expect(tx.post.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid code", async () => {
+    mocks.requireActor.mockResolvedValue(actors.admin);
+    const result = await createPostAction(
+      null,
+      form({ code: "posto 1!", name: "Posto 1", location: "", notes: "" }),
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      fieldErrors: { code: [expect.any(String)] },
+    });
+  });
+});
+
+describe("operational status of a post", () => {
+  const statusForm = (postId: string) => form({ postId, status: "SUSPENDED" });
+
+  it("lets the post's coordinator change it, with history", async () => {
+    mocks.requireActor.mockResolvedValue(actors.coordinatorA);
+    const result = await setPostStatusAction(null, statusForm(POST_A));
+    expect(result.ok).toBe(true);
+    expect(tx.post.update).toHaveBeenCalledWith({
+      where: { id: POST_A },
+      data: { status: "SUSPENDED" },
+    });
+    expect(tx.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        before: { status: "OPERATING" },
+        after: { status: "SUSPENDED" },
+      }),
+    });
+  });
+
+  it.each([
+    ["coordinator of another post", actors.coordinatorA, POST_B],
+    ["authority", actors.authority, POST_A],
+    ["captain", actors.captainA, POST_A],
+    ["lifeguard", actors.lifeguardA, POST_A],
+  ])("denies the %s", async (_label, who, postId) => {
+    mocks.requireActor.mockResolvedValue(who);
+    expect(await setPostStatusAction(null, statusForm(postId))).toEqual({
+      ok: false,
+      error: "Você não tem permissão para esta operação.",
+    });
+    expect(db.post.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("does not add lifeguards to a deactivated post", async () => {
+    mocks.requireActor.mockResolvedValue(actors.coordinatorA);
+    db.post.findUnique.mockResolvedValue({ status: "INACTIVE" });
+    const result = await addLifeguardAction(null, teamForm(POST_A));
+    expect(result.ok).toBe(false);
+    expect(tx.postAssignment.create).not.toHaveBeenCalled();
   });
 });

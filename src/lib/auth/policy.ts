@@ -9,6 +9,13 @@
  * - Captain is an assignment of a LIFEGUARD to a post, not a role.
  * - isAdmin grants account, post and area administration. Not allowed for
  *   LIFEGUARD.
+ *
+ * Schedules (provisional, OD-08, OD-24..OD-27):
+ * - Any COORDINATOR opens and closes availability windows (they are shared).
+ * - Only LIFEGUARDs send availability, always for themselves.
+ * - Only the post's COORDINATOR builds, confirms and changes its schedule.
+ *   Being an administrator does not grant this (operation, not accounts).
+ * - LIFEGUARDs see only their own entries in published schedules.
  */
 
 export type Role = "AUTHORITY" | "COORDINATOR" | "LIFEGUARD";
@@ -73,6 +80,39 @@ export function canViewPost(actor: Actor, postId: string): boolean {
 /** Assign or remove lifeguards and choose the captain of a post. */
 export function canManagePostTeam(actor: Actor, postId: string): boolean {
   return actor.isAdmin || coordinates(actor, postId);
+}
+
+/** Change the operational state of a post (operating, suspended...). */
+export function canChangePostStatus(actor: Actor, postId: string): boolean {
+  return canManagePostTeam(actor, postId);
+}
+
+/** Open and close the shared availability windows. */
+export function canManageAvailabilityWindows(actor: Actor): boolean {
+  return actor.role === "COORDINATOR";
+}
+
+/** Send one's own availability. The user id always comes from the session. */
+export function canSubmitAvailability(actor: Actor): boolean {
+  return actor.role === "LIFEGUARD";
+}
+
+/**
+ * See the availability sent by lifeguards. Coordinators are further limited
+ * to the teams of their posts by the queries.
+ */
+export function canViewAvailability(actor: Actor): boolean {
+  return actor.role === "COORDINATOR" || actor.role === "AUTHORITY";
+}
+
+/** Build, confirm and change the schedule of a post. */
+export function canManageSchedule(actor: Actor, postId: string): boolean {
+  return coordinates(actor, postId);
+}
+
+/** See whole schedules of a post, in any state (read-only for most). */
+export function canViewPostSchedules(actor: Actor, postId: string): boolean {
+  return canViewAllPosts(actor) || coordinates(actor, postId);
 }
 
 /** Captain-only operational duties, e.g. reinforcement alerts. */
