@@ -1,8 +1,10 @@
 # Requisitos do produto
 
 > Sistema de gestão de postos de guarda-vidas.
-> Estado em 2026-10-10. Implementados: contas e permissões (RF-01) e
-> equipes, disponibilidade e escalas (RF-08), com regras provisórias.
+> Estado em 2026-10-10. Implementados: contas e permissões (RF-01),
+> jornada e presença (RF-02), entrada sem internet (RF-03), checklist
+> individual (RF-04), problemas de materiais no checklist (parte do RF-05)
+> e equipes, disponibilidade e escalas (RF-08), com regras provisórias.
 >
 > Este documento lista apenas requisitos **fornecidos pelo responsável pelo
 > produto**. Tudo o que não foi informado está marcado como dúvida e
@@ -143,5 +145,7 @@ e posto (regra do `CLAUDE.md`).
 ## Fora do escopo até decisão contrária
 
 - Integrações externas (sistemas oficiais, rádio, SMS, WhatsApp).
-- Geolocalização ou fotos como prova de presença.
+- Geolocalização ou fotos **como prova** de presença. A localização é
+  registrada quando disponível, como indício para o coordenador (Prompt 4,
+  OD-09); fotos não.
 - Aplicativo nativo de loja (a proposta é web/PWA).

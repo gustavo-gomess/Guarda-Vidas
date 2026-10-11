@@ -112,11 +112,24 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
 - **Já usado provisoriamente:** o dia operacional das janelas e escalas é o
   calendário de `America/Sao_Paulo` (`src/lib/dates.ts`). A escala é por
   dia inteiro, sem horário.
+- **Presença (provisório):** sem limite de horário; uma jornada por dia
+  operacional; a saída precisa ser no **mesmo dia** da entrada (turno que
+  cruza a meia-noite não é suportado). Saída esquecida: a jornada fica sem
+  saída; nada é fechado automaticamente. Correção da saída: pendente.
 
 ### OD-06 — Checklist na assunção
 
 - O que é "assunção" (início do turno? cada troca de posto?); itens; quem
   define; varia por posto; efeito de item reprovado.
+- Definido no Prompt 5: cada assunção gera um checklist próprio, ligado à
+  assunção, ao guarda-vidas, ao posto e à jornada.
+- **Provisória (implementada):** assunção = a **jornada do dia** (entrada
+  registrada; uma por pessoa e dia). Um checklist por jornada, garantido
+  pelo banco. O guarda-vidas o inicia na tela de checklist; jornada sem
+  checklist aparece como **pendente**. Item com problema **não tem efeito
+  automático**: aparece em "Problemas de materiais" para a coordenação.
+- Pendente: troca de posto no mesmo dia é nova assunção? Item com problema
+  deve gerar alerta ou pendência (OD-12, OD-14)?
 
 ### OD-08 — Disponibilidade em janelas de três dias
 
@@ -181,14 +194,114 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
     propostas, **sem editar** (ser administrador não dá poder sobre escala).
 - Pendente: o guarda-vidas deve ver quem mais está escalado no seu posto?
 
+### OD-28 — Registro online precisa de validação?
+
+- Requisito aprovado: a entrada **sem internet** exige validação do
+  coordenador. Nada foi dito sobre a online.
+- **Provisória (implementada):** registro online **sem divergência** é
+  aceito como **validado** na hora (decisão registrada como "Sistema"),
+  porque vale a hora do servidor. Com qualquer divergência, vai para
+  análise. O coordenador pode rever qualquer registro, com justificativa.
+- Alternativa: tudo passa pela fila do coordenador (mais trabalho diário).
+
+### OD-29 — Proximidade do posto
+
+- O pedido fala em "limite configurado e aprovado". **Nenhum limite foi
+  aprovado** e os postos não tinham coordenadas.
+- **Implementado:** o administrador pode informar latitude, longitude e um
+  raio (10 a 5000 m) por posto. **Sem esses dados, a proximidade não é
+  avaliada.** Fora do raio (considerando a precisão do GPS) o registro vai
+  para análise; nunca é recusado. Precisão pior que o raio vira observação
+  ("inconclusivo").
+- Pendente: o valor do raio de cada posto (ou um padrão).
+
+### OD-30 — Divergências e tolerâncias
+
+- **Provisório (implementado em `src/features/attendance/rules.ts`):**
+  - vão para análise: sem escala confirmada no dia; fora da equipe do posto;
+    posto fora de operação; fora do raio; hora do aparelho no futuro;
+    relógio do aparelho diferente do servidor em mais de **5 minutos**
+    (registros offline); entrada repetida; saída de entrada rejeitada; saída
+    antes da entrada;
+  - só observação: sem localização; localização imprecisa; posto sem raio;
+    relógio diferente em registro online (vale a hora do servidor); relógio
+    nunca conferido; sincronização mais de **12 horas** depois; posto
+    escolhido diferente da escala (vale a escala).
+
+### OD-31 — Entradas repetidas no mesmo dia
+
+- **Provisório (implementado):** uma jornada por pessoa e dia (garantido
+  pelo banco). Segunda entrada **online** é recusada na hora, com a hora da
+  primeira. Segunda entrada vinda **sem internet** é guardada como
+  "repetida", em análise, e não conta na jornada: nada é descartado.
+
+### OD-32 — Opções de estado dos itens do checklist
+
+- O pedido diz "conforme as opções definidas nos requisitos", mas os
+  requisitos não definem opções.
+- **Provisória (implementada):** **Em condições**, **Ausente**,
+  **Danificado**, **Inadequado** (os três últimos vêm do texto do Prompt 5
+  e contam como problema). Observação por item e observações gerais,
+  opcionais.
+- Pendente: "não se aplica"; observação obrigatória para problemas.
+
+### OD-33 — Quem define a lista de itens
+
+- **Provisória (implementada):** uma lista **por posto**, editada pelo
+  **coordenador do posto**. Cada alteração (nome, orientação, ordem,
+  desativação) cria uma **nova versão**; checklists já iniciados guardam a
+  cópia da época. Itens desativados não entram em checklists novos.
+- Pendente: lista padrão comum a todos os postos; copiar lista entre
+  postos; itens obrigatórios ou por temporada.
+
+### OD-34 — Correções do checklist
+
+- **Provisória (implementada):** só **o próprio guarda-vidas** corrige um
+  checklist enviado, a qualquer momento, com **motivo obrigatório**. A
+  correção é uma nova versão completa; as anteriores continuam no
+  histórico. A coordenação consulta, não altera respostas.
+- Pendente: prazo para correções; correção pela coordenação; registrar que
+  um material foi reposto ou consertado (hoje só um novo checklist mostra
+  isso).
+
+### OD-35 — Checklist sem internet
+
+- O Prompt 5 manda implementar armazenamento local "se o checklist offline
+  estiver aprovado". **Não está** (OD-18).
+- **Implementado só online.** Se a conexão cair ao salvar, **nada fica
+  guardado no aparelho**; as respostas continuam na tela e a tela diz
+  claramente que nada foi salvo. Ao tentar de novo, o mesmo identificador
+  de envio é reutilizado, então o servidor nunca grava em dobro. Uma edição
+  depois de uma tentativa sem resposta gera um identificador novo (a edição
+  nunca é descartada em silêncio).
+- Pendente: aprovar ou não o checklist offline. Se aprovado, o desenho da
+  presença (fila no IndexedDB + envio idempotente) pode ser reaproveitado.
+
 ### OD-09 — Entrada offline: evidências
 
 - Hora do aparelho basta? Exigir foto/localização? (afeta LGPD).
+- **Definido no Prompt 4:** registrar data/hora do aparelho e, **quando
+  disponíveis**, localização e precisão do GPS, sem tratá-los como prova.
+- **Implementado:** a localização é pedida a cada registro (até 10 s) e
+  nunca é obrigatória: negada ou indisponível vira observação. Foto: não.
+- Ver OD-19 sobre dados pessoais.
 
 ### OD-10 — Entrada offline: validação
 
 - Prazo para sincronizar e validar; efeito de rejeição; chegada depois do
   fechamento do dia; saída também offline?
+- **Saída sem internet: NÃO implementada**, por não haver regra aprovada
+  (o Prompt 4 pede para implementar só regra aprovada). A saída exige
+  internet; sem ela, a tela avisa que a saída não foi registrada. Opções
+  para decidir: (a) manter só online; (b) aceitar offline como provisória,
+  igual à entrada; (c) registrar offline só a intenção, confirmada depois.
+- **Implementado:** sem prazo para sincronizar (atraso maior que 12 h vira
+  observação); rejeição **não apaga nem tem efeito automático**: o registro
+  fica rejeitado, com justificativa, e pode ser revisto com nova
+  justificativa. Chegada depois do fechamento: não há fechamento ainda
+  (OD-15).
+- Pendente: prazo para o coordenador validar; o que acontece com a jornada
+  de uma entrada rejeitada; quem corrige registros errados.
 
 ### OD-11 — Materiais, ocorrências e registros do posto
 
@@ -223,11 +336,17 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
 
 ### OD-18 — Matriz offline por funcionalidade
 
-- A ser proposta em `OFFLINE-STRATEGY.md` (ainda não escrito).
+- Proposta em `OFFLINE-STRATEGY.md`. Só a entrada de presença está
+  implementada offline.
 
 ### OD-19 — Dados pessoais (LGPD)
 
 - Quais dados de vítimas são coletados; retenção; base legal; quem acessa.
+- **Localização dos guarda-vidas (Prompt 4):** é dado pessoal. Hoje fica só
+  no registro de presença (não vai para logs nem para o histórico), é
+  visível ao próprio guarda-vidas, ao coordenador do posto, à autoridade e a
+  administradores. No aparelho, registros confirmados são apagados após
+  dois dias. Pendente: retenção no servidor, base legal e aviso ao usuário.
 
 ### OD-20 — Volume e aparelhos
 

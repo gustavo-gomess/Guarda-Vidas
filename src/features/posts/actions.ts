@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import {
-  postDataSchema,
+  createPostSchema,
   postMemberSchema,
   setCaptainSchema,
   setPostStatusSchema,
@@ -51,6 +51,9 @@ function readPostData(formData: FormData) {
     name: formData.get("name"),
     location: formData.get("location") ?? "",
     notes: formData.get("notes") ?? "",
+    latitude: formData.get("latitude"),
+    longitude: formData.get("longitude"),
+    proximityRadiusMeters: formData.get("proximityRadiusMeters"),
   };
 }
 
@@ -84,7 +87,7 @@ export async function createPostAction(
   const actor = await requireActor();
   if (!canManagePosts(actor)) return denied(actor, "post.create");
 
-  const parsed = postDataSchema.safeParse(readPostData(formData));
+  const parsed = createPostSchema.safeParse(readPostData(formData));
   if (!parsed.success) return invalidInput(parsed.error);
 
   const duplicate = await duplicateFields(parsed.data);
@@ -129,7 +132,15 @@ export async function updatePostAction(
   const db = getDb();
   const post = await db.post.findUnique({
     where: { id: postId },
-    select: { code: true, name: true, location: true, notes: true },
+    select: {
+      code: true,
+      name: true,
+      location: true,
+      notes: true,
+      latitude: true,
+      longitude: true,
+      proximityRadiusMeters: true,
+    },
   });
   if (!post) return fail("Posto não encontrado.");
 

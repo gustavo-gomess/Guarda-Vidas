@@ -132,6 +132,8 @@ For every completed task, report:
 - `docs/TECHNICAL-IMPLICATIONS.md` — how requirements shape the system.
 - `docs/OPEN-DECISIONS.md` — product questions (OD-xx) and the provisional
   choices implemented. Do not invent operational rules beyond them.
+- `docs/OFFLINE-STRATEGY.md` — what works without internet and how
+  (presence entry only, so far).
 - `docs/ARCHITECTURE.md` — structure and where code goes.
 - `docs/CONVENTIONS.md` — naming, components, errors, validation, logs,
   env vars, commits and branches.

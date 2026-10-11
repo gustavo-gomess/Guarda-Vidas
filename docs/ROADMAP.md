@@ -28,15 +28,30 @@ estiver concluída e as decisões de produto bloqueantes, aprovadas.
       com situação operacional, janelas de três dias, disponibilidade,
       montagem manual, confirmação, alteração com justificativa, filtros e
       histórico. Regras provisórias OD-03, OD-08, OD-24 a OD-27.
+- [x] **Presença e jornada**: entrada/saída, entrada offline com fila no
+      aparelho e service worker, sincronização idempotente, GPS e relógio
+      como indícios, fila de validação, painel validada × provisória,
+      registros e decisões imutáveis. Saída offline pendente (OD-10).
+      Regras provisórias OD-28 a OD-31.
+- [x] **Checklist individual e materiais**: lista de itens por posto com
+      versões, um checklist por assunção, rascunho/envio/correção com
+      motivo, histórico de versões, problemas de materiais para a
+      coordenação, envio repetido sem duplicar. Só online (OD-35).
+      Regras provisórias OD-06, OD-32 a OD-35.
 
 ## Pendente da etapa de requisitos
 
 - [x] `OPEN-DECISIONS.md` — dúvidas de produto (`OD-xx`).
-- [ ] `OFFLINE-STRATEGY.md` — matriz offline por funcionalidade.
+- [x] `OFFLINE-STRATEGY.md` — matriz proposta (pendente de aprovação,
+      OD-18) e fluxo offline da presença.
 - [ ] `IMPLEMENTATION-PLAN.md` — ordem de execução dos módulos.
 - [ ] Confirmar as decisões provisórias de autenticação (OD-01, 02, 04,
       07, 21, 22, 23).
 - [ ] Confirmar as decisões provisórias de escalas (OD-03, 08, 24 a 27).
+- [ ] Decidir a saída sem internet (OD-10) e confirmar OD-28 a OD-31.
+- [ ] Testar a presença offline em aparelhos reais (Android e iOS).
+- [ ] Confirmar OD-06 e OD-32 a OD-35 (checklist), inclusive se o
+      checklist deve funcionar offline.
 
 ## Próximas fases técnicas
 

@@ -37,15 +37,22 @@ model User {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  sessions           Session[]
-  coordinatedPosts   PostCoordinator[]
-  assignments        PostAssignment[]
-  auditEntries       AuditLog[]           @relation("AuditActor")
-  openedWindows      AvailabilityWindow[]
-  availabilities     Availability[]
-  scheduleEntries    ScheduleEntry[]      @relation("ScheduledUser")
-  createdEntries     ScheduleEntry[]      @relation("EntryCreator")
-  confirmedSchedules Schedule[]           @relation("ScheduleConfirmer")
+  sessions              Session[]
+  coordinatedPosts      PostCoordinator[]
+  assignments           PostAssignment[]
+  auditEntries          AuditLog[]             @relation("AuditActor")
+  openedWindows         AvailabilityWindow[]
+  availabilities        Availability[]
+  scheduleEntries       ScheduleEntry[]        @relation("ScheduledUser")
+  createdEntries        ScheduleEntry[]        @relation("EntryCreator")
+  confirmedSchedules    Schedule[]             @relation("ScheduleConfirmer")
+  journeys              Journey[]
+  attendanceRecords     AttendanceRecord[]
+  attendanceDecisions   AttendanceDecision[]
+  checklistItems        ChecklistItem[]
+  checklistItemVersions ChecklistItemVersion[]
+  checklists            Checklist[]
+  checklistRevisions    ChecklistRevision[]
 }
 
 model Session {
@@ -72,22 +79,31 @@ enum PostStatus {
 }
 
 model Post {
-  id        String     @id @default(uuid()) @db.Uuid
+  id                    String     @id @default(uuid()) @db.Uuid
   /// Short identifier chosen by the administrator, e.g. "P-01". Uppercase.
-  code      String     @unique
-  name      String     @unique
+  code                  String     @unique
+  name                  String     @unique
   /// Free-text location (beach, reference point).
-  location  String     @default("")
+  location              String     @default("")
   /// Information needed for the service, until OD-03 defines fields.
-  notes     String     @default("")
-  status    PostStatus @default(OPERATING)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  notes                 String     @default("")
+  status                PostStatus @default(OPERATING)
+  /// Reference point for the proximity check. Optional: without it, or
+  /// without an approved radius, proximity is not evaluated (OD-29).
+  latitude              Float?
+  longitude             Float?
+  proximityRadiusMeters Int?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
 
-  coordinators PostCoordinator[]
-  assignments  PostAssignment[]
-  schedules    Schedule[]
-  auditEntries AuditLog[]
+  coordinators   PostCoordinator[]
+  assignments    PostAssignment[]
+  schedules      Schedule[]
+  journeys       Journey[]
+  attendance     AttendanceRecord[]
+  checklistItems ChecklistItem[]
+  checklists     Checklist[]
+  auditEntries   AuditLog[]
 }
 
 /// A coordinator's area of responsibility.
@@ -227,4 +243,249 @@ model ScheduleEntry {
   /// day; never two posts at the same time).
   @@unique([userId, date])
   @@index([scheduleId, date])
+}
+
+enum AttendanceKind {
+  CHECK_IN
+  CHECK_OUT
+}
+
+/// How the record reached the server. Decided by the server, not the device.
+enum AttendanceOrigin {
+  /// Sent at the moment of registration; the server time is the official time.
+  ONLINE
+  /// Saved on the device without internet and synchronized later. Provisional
+  /// until a coordinator validates it.
+  OFFLINE
+}
+
+/// Server-side states. "Saved on the device" and "waiting to synchronize"
+/// exist only on the device (see src/features/attendance/client).
+enum AttendanceStatus {
+  AWAITING_VALIDATION
+  VALIDATED
+  REJECTED
+  /// Divergence found (schedule, clock, distance, duplicate...): a person
+  /// must look at it. Never discarded automatically.
+  UNDER_REVIEW
+}
+
+enum LocationStatus {
+  CAPTURED
+  DENIED
+  UNAVAILABLE
+  TIMEOUT
+  UNSUPPORTED
+}
+
+/// One lifeguard's shift on one operational day (one per day). Created by
+/// the first check-in; append-only (database trigger).
+model Journey {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  date      DateTime @db.Date
+  postId    String   @db.Uuid
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+
+  records   AttendanceRecord[]
+  checklist Checklist?
+
+  @@unique([userId, date])
+  @@index([postId, date])
+}
+
+/// An entry or exit exactly as registered. The original data never changes
+/// (database trigger); only `status` moves, and every move is an
+/// AttendanceDecision.
+model AttendanceRecord {
+  /// Generated on the device: the idempotency key of the synchronization.
+  id             String           @id @db.Uuid
+  journeyId      String           @db.Uuid
+  journey        Journey          @relation(fields: [journeyId], references: [id], onDelete: Restrict)
+  userId         String           @db.Uuid
+  user           User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  postId         String           @db.Uuid
+  post           Post             @relation(fields: [postId], references: [id], onDelete: Restrict)
+  kind           AttendanceKind
+  /// Equal to `kind` for the journey's entry/exit; NULL for duplicates, so
+  /// the unique index allows any number of preserved duplicates.
+  primaryKind    AttendanceKind?
+  origin         AttendanceOrigin
+  /// Clock of the device at registration. Information, not proof.
+  deviceTime     DateTime
+  /// Server time minus device time, last measured by the device (ms).
+  clockOffsetMs  Int?
+  receivedAt     DateTime         @default(now())
+  locationStatus LocationStatus
+  latitude       Float?
+  longitude      Float?
+  accuracyMeters Float?
+  distanceMeters Float?
+  /// Divergence and notice codes found on arrival (see attendance/rules.ts).
+  flags          String[]
+  /// SHA-256 of the registered data: a different payload with the same id
+  /// is refused instead of overwriting the original.
+  payloadHash    String
+  status         AttendanceStatus
+
+  decisions AttendanceDecision[]
+
+  @@unique([journeyId, primaryKind])
+  @@index([postId, status])
+  @@index([userId, receivedAt])
+}
+
+/// Every status change of a record, including the first one. Append-only.
+model AttendanceDecision {
+  id          String            @id @default(uuid()) @db.Uuid
+  recordId    String            @db.Uuid
+  record      AttendanceRecord  @relation(fields: [recordId], references: [id], onDelete: Restrict)
+  /// Null when set by the system on arrival.
+  decidedById String?           @db.Uuid
+  decidedBy   User?             @relation(fields: [decidedById], references: [id], onDelete: Restrict)
+  fromStatus  AttendanceStatus?
+  toStatus    AttendanceStatus
+  reason      String            @default("")
+  createdAt   DateTime          @default(now())
+
+  @@index([recordId, createdAt])
+}
+
+/// Condition of a checklist item. Provisional options (OD-32).
+enum ChecklistItemState {
+  OK
+  MISSING
+  DAMAGED
+  INADEQUATE
+}
+
+enum ChecklistStatus {
+  /// Started, not sent ("incompleto").
+  DRAFT
+  /// Sent by the lifeguard. Later changes are corrections with a reason.
+  SUBMITTED
+}
+
+enum ChecklistRevisionKind {
+  DRAFT
+  SUBMISSION
+  CORRECTION
+}
+
+/// A checklist item of a post. Its content lives in versions, so editing
+/// the list never changes checklists already filled. Append-only.
+model ChecklistItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  postId      String   @db.Uuid
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Restrict)
+  createdById String   @db.Uuid
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+
+  versions ChecklistItemVersion[]
+  lines    ChecklistLine[]
+
+  @@index([postId])
+}
+
+/// One version of an item. The highest `version` is the current one.
+/// Append-only.
+model ChecklistItemVersion {
+  id          String        @id @default(uuid()) @db.Uuid
+  itemId      String        @db.Uuid
+  item        ChecklistItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  version     Int
+  label       String
+  guidance    String        @default("")
+  position    Int
+  active      Boolean
+  createdById String        @db.Uuid
+  createdBy   User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime      @default(now())
+
+  lines ChecklistLine[]
+
+  @@unique([itemId, version])
+}
+
+/// The checklist of one assumption (journey): one per journey, never shared
+/// between people. Only status, submittedAt and currentRevisionId change.
+model Checklist {
+  id                String             @id @default(uuid()) @db.Uuid
+  journeyId         String             @unique @db.Uuid
+  journey           Journey            @relation(fields: [journeyId], references: [id], onDelete: Restrict)
+  userId            String             @db.Uuid
+  user              User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  postId            String             @db.Uuid
+  post              Post               @relation(fields: [postId], references: [id], onDelete: Restrict)
+  date              DateTime           @db.Date
+  status            ChecklistStatus    @default(DRAFT)
+  createdAt         DateTime           @default(now())
+  submittedAt       DateTime?
+  /// Latest revision (the current answers). Null until the first save.
+  currentRevisionId String?            @unique @db.Uuid
+  currentRevision   ChecklistRevision? @relation("CurrentRevision", fields: [currentRevisionId], references: [id], onDelete: Restrict)
+
+  lines     ChecklistLine[]
+  revisions ChecklistRevision[] @relation("Revisions")
+
+  @@index([postId, date])
+  @@index([userId, date])
+}
+
+/// The list as it was when the checklist started (frozen copy of the item
+/// version). Append-only.
+model ChecklistLine {
+  id            String               @id @default(uuid()) @db.Uuid
+  checklistId   String               @db.Uuid
+  checklist     Checklist            @relation(fields: [checklistId], references: [id], onDelete: Restrict)
+  itemId        String               @db.Uuid
+  item          ChecklistItem        @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  itemVersionId String               @db.Uuid
+  itemVersion   ChecklistItemVersion @relation(fields: [itemVersionId], references: [id], onDelete: Restrict)
+  position      Int
+  label         String
+  guidance      String               @default("")
+
+  answers ChecklistAnswer[]
+
+  @@unique([checklistId, itemId])
+}
+
+/// A full snapshot of the answers at each save. The id is generated by the
+/// browser for each attempt, so a repeated request is recognized.
+/// Append-only.
+model ChecklistRevision {
+  id          String                @id @db.Uuid
+  checklistId String                @db.Uuid
+  checklist   Checklist             @relation("Revisions", fields: [checklistId], references: [id], onDelete: Restrict)
+  number      Int
+  kind        ChecklistRevisionKind
+  authorId    String                @db.Uuid
+  author      User                  @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  generalNote String                @default("")
+  /// Required for corrections.
+  reason      String                @default("")
+  createdAt   DateTime              @default(now())
+
+  answers   ChecklistAnswer[]
+  currentOf Checklist?        @relation("CurrentRevision")
+
+  @@unique([checklistId, number])
+}
+
+/// The answer to one line in one revision. Append-only.
+model ChecklistAnswer {
+  revisionId String              @db.Uuid
+  revision   ChecklistRevision   @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  lineId     String              @db.Uuid
+  line       ChecklistLine       @relation(fields: [lineId], references: [id], onDelete: Restrict)
+  /// Null while unanswered in a draft.
+  state      ChecklistItemState?
+  note       String              @default("")
+
+  @@id([revisionId, lineId])
+  @@index([lineId])
 }

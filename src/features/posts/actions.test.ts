@@ -208,6 +208,9 @@ describe("post and area administration is admin-only", () => {
         name: "Posto 9",
         location: "Praia Central",
         notes: "",
+        latitude: null,
+        longitude: null,
+        proximityRadiusMeters: null,
       },
     });
     expect(tx.auditLog.create).toHaveBeenCalledWith({
@@ -239,6 +242,50 @@ describe("post and area administration is admin-only", () => {
       ok: false,
       fieldErrors: { code: [expect.any(String)] },
     });
+  });
+});
+
+describe("post coordinates and proximity radius", () => {
+  const withPlace = (place: Record<string, string>) =>
+    form({ code: "P-10", name: "Posto 10", location: "", notes: "", ...place });
+
+  beforeEach(() => mocks.requireActor.mockResolvedValue(actors.admin));
+
+  it("accepts coordinates with a radius (comma or dot decimals)", async () => {
+    tx.post.create.mockResolvedValue({ id: POST_B, status: "OPERATING" });
+    const result = await createPostAction(
+      null,
+      withPlace({
+        latitude: "-27,5954",
+        longitude: "-48.548",
+        proximityRadiusMeters: "150",
+      }),
+    );
+    expect(result.ok).toBe(true);
+    expect(tx.post.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        latitude: -27.5954,
+        longitude: -48.548,
+        proximityRadiusMeters: 150,
+      }),
+    });
+  });
+
+  it.each([
+    [{ latitude: "-27.5" }, "longitude"],
+    [{ proximityRadiusMeters: "100" }, "proximityRadiusMeters"],
+    [{ latitude: "-95", longitude: "0" }, "latitude"],
+    [
+      { latitude: "-27", longitude: "-48", proximityRadiusMeters: "2.5" },
+      "proximityRadiusMeters",
+    ],
+  ])("rejects incomplete or invalid places %o", async (place, field) => {
+    const result = await createPostAction(null, withPlace(place));
+    expect(result).toMatchObject({
+      ok: false,
+      fieldErrors: { [field]: [expect.any(String)] },
+    });
+    expect(tx.post.create).not.toHaveBeenCalled();
   });
 });
 

@@ -13,6 +13,12 @@ export function UserMenu({ actor }: { actor: Actor }) {
         <Link href="/escalas" className="underline">
           Escalas
         </Link>
+        <Link href="/presenca" className="underline">
+          Presença
+        </Link>
+        <Link href="/checklists" className="underline">
+          Checklist
+        </Link>
         <Link href="/disponibilidade" className="underline">
           Disponibilidade
         </Link>

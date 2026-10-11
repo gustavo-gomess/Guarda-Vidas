@@ -16,6 +16,16 @@
  * - Only the post's COORDINATOR builds, confirms and changes its schedule.
  *   Being an administrator does not grant this (operation, not accounts).
  * - LIFEGUARDs see only their own entries in published schedules.
+ *
+ * Presence (provisional, OD-28..OD-31):
+ * - Only LIFEGUARDs register entry and exit, always for themselves.
+ * - Only the post's COORDINATOR validates, rejects or sends to review.
+ * - Authority and administrators consult; lifeguards see their own.
+ *
+ * Checklists (provisional, OD-32..OD-35):
+ * - The post's COORDINATOR edits the post's item list.
+ * - Only the LIFEGUARD of the assumption fills and corrects its checklist.
+ * - Coordinators (area), authority and administrators consult.
  */
 
 export type Role = "AUTHORITY" | "COORDINATOR" | "LIFEGUARD";
@@ -113,6 +123,26 @@ export function canManageSchedule(actor: Actor, postId: string): boolean {
 /** See whole schedules of a post, in any state (read-only for most). */
 export function canViewPostSchedules(actor: Actor, postId: string): boolean {
   return canViewAllPosts(actor) || coordinates(actor, postId);
+}
+
+/** Register one's own entry and exit. */
+export function canRegisterAttendance(actor: Actor): boolean {
+  return actor.role === "LIFEGUARD";
+}
+
+/** Validate, reject or send to review the presence records of a post. */
+export function canValidateAttendance(actor: Actor, postId: string): boolean {
+  return coordinates(actor, postId);
+}
+
+/** Create, edit, deactivate and reorder the checklist items of a post. */
+export function canManageChecklistItems(actor: Actor, postId: string): boolean {
+  return coordinates(actor, postId);
+}
+
+/** Fill or correct the checklist of a journey: only its own lifeguard. */
+export function canFillChecklist(actor: Actor, journeyUserId: string): boolean {
+  return actor.role === "LIFEGUARD" && actor.id === journeyUserId;
 }
 
 /** Captain-only operational duties, e.g. reinforcement alerts. */

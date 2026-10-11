@@ -285,6 +285,73 @@ horário (OD-05), a restrição única muda para intervalo de horário.
 
 ---
 
+## D010 — Presença offline sem dependências novas
+
+**Contexto.** Prompt 4: entrada sem internet, provisória, sincronizada sem
+duplicidade e validada pelo coordenador, preservando o original.
+
+**Decisão.**
+
+- **Service worker escrito à mão** (`public/sw.js`, ~100 linhas) em vez do
+  Serwist: só precisamos de uma página e dos arquivos estáticos em cache.
+  Evita dependência nova (que exigiria aprovação) e mantém o controle de
+  que **nenhuma API é respondida pelo cache**.
+- **IndexedDB nativo** para a fila (sem `idb`).
+- **Route Handler** (`POST /api/presenca/registros`) para sincronizar, não
+  Server Action: uma página aberta do cache pode ser de um deploy anterior,
+  e os ids de Server Action mudam a cada deploy. A rota confere mesma
+  origem, sessão, JSON e tamanho.
+- **Idempotência pelo id gerado no aparelho** (UUID = chave primária) +
+  hash do conteúdo: repetido devolve o original; id igual com dados
+  diferentes é recusado. Concorrência resolvida pela restrição única e uma
+  nova tentativa.
+- **Preservação no banco:** triggers impedem alterar os dados de um
+  registro (só `status` muda) e apagar registros, decisões ou jornadas.
+- **Origem decidida pelo servidor:** online usa a hora do servidor; offline
+  usa a hora declarada pelo aparelho, sempre com validação.
+- **`Permissions-Policy`** passou de `geolocation=()` (bloqueava o GPS) para
+  `geolocation=(self)`.
+
+**Consequências.** O comportamento no navegador (service worker, IndexedDB,
+GPS) não tem teste automatizado: precisa de Playwright e teste em campo.
+Ao mudar `public/sw.js`, aumentar a versão dos caches (`gv-pages-v1`).
+
+---
+
+## D011 — Checklist: versões em vez de edição
+
+**Contexto.** Prompt 5: um checklist por assunção, lista de itens
+configurável sem alterar registros antigos, correções auditáveis e sem
+duplicar envios.
+
+**Decisão.**
+
+- **Itens versionados:** `ChecklistItem` é só a identidade; o conteúdo fica
+  em `ChecklistItemVersion` (nunca alterada). Editar = nova versão.
+- **Cópia congelada:** ao iniciar, o checklist copia os itens ativos para
+  `ChecklistLine` (nome e orientação da época). Mudar a lista depois não
+  muda o checklist.
+- **Respostas como versões completas:** cada salvamento grava uma
+  `ChecklistRevision` com todas as respostas. "Atual" é um ponteiro
+  (`currentRevisionId`); o histórico é a lista de versões, e as diferenças
+  são calculadas na tela.
+- **Idempotência:** o id da versão é gerado pelo navegador para cada
+  tentativa; repetir a mesma tentativa devolve o que já foi gravado. Linha
+  do checklist travada (`FOR UPDATE`) durante o salvamento.
+- **Um checklist por jornada:** restrição única em `journeyId`; nada é
+  copiado de outro checklist.
+- **Triggers:** itens, versões, linhas, versões de resposta e respostas são
+  só inserção; em `Checklist` só mudam situação, data de envio e versão
+  atual.
+- **Server Action** (não rota): o checklist é só online (OD-35), então não
+  há página antiga em cache chamando ids de ação desatualizados.
+
+**Consequências.** O banco cresce uma versão completa por salvamento (poucos
+itens por checklist; aceitável). Se o checklist offline for aprovado, a
+fila da presença pode ser reaproveitada com o mesmo id de envio.
+
+---
+
 ## Decisões pendentes
 
 Decisões de **produto** ficam em `OPEN-DECISIONS.md`. Pendências técnicas:

@@ -64,10 +64,29 @@ async function Content({ params }: { params: Promise<{ postId: string }> }) {
             <dd>{post.location || "Não informada"}</dd>
             <dt className="font-medium">Informações</dt>
             <dd className="whitespace-pre-line">{post.notes || "Nenhuma"}</dd>
+            <dt className="font-medium">Proximidade</dt>
+            <dd>
+              {post.latitude !== null &&
+              post.longitude !== null &&
+              post.proximityRadiusMeters !== null
+                ? `${post.proximityRadiusMeters} m de ${post.latitude}, ${post.longitude}`
+                : "Não avaliada (sem coordenadas ou raio aprovado)"}
+            </dd>
           </dl>
-          <Link href={`/escalas?posto=${post.id}`} className="underline">
-            Ver escalas deste posto
-          </Link>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <Link href={`/escalas?posto=${post.id}`} className="underline">
+              Escalas deste posto
+            </Link>
+            <Link href={`/postos/${post.id}/itens`} className="underline">
+              Itens do checklist
+            </Link>
+            <Link
+              href={`/checklists/problemas?posto=${post.id}`}
+              className="underline"
+            >
+              Problemas de materiais
+            </Link>
+          </div>
           {post.canChangeStatus ? (
             <ActionForm
               action={setPostStatusAction}
@@ -122,6 +141,24 @@ async function Content({ params }: { params: Promise<{ postId: string }> }) {
                   name="notes"
                   defaultValue={post.notes}
                   maxLength={1000}
+                />
+                <Field
+                  label="Latitude (opcional, ex.: -27.59)"
+                  name="latitude"
+                  inputMode="decimal"
+                  defaultValue={post.latitude ?? ""}
+                />
+                <Field
+                  label="Longitude (opcional, ex.: -48.54)"
+                  name="longitude"
+                  inputMode="decimal"
+                  defaultValue={post.longitude ?? ""}
+                />
+                <Field
+                  label="Raio de proximidade em metros (somente valor aprovado)"
+                  name="proximityRadiusMeters"
+                  inputMode="numeric"
+                  defaultValue={post.proximityRadiusMeters ?? ""}
                 />
               </ActionForm>
             </details>

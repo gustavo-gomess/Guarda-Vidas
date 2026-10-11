@@ -72,6 +72,21 @@ async function Content() {
               name="notes"
               maxLength={1000}
             />
+            <Field
+              label="Latitude (opcional, ex.: -27.59)"
+              name="latitude"
+              inputMode="decimal"
+            />
+            <Field
+              label="Longitude (opcional, ex.: -48.54)"
+              name="longitude"
+              inputMode="decimal"
+            />
+            <Field
+              label="Raio de proximidade em metros (somente valor aprovado)"
+              name="proximityRadiusMeters"
+              inputMode="numeric"
+            />
           </ActionForm>
         </section>
       </PageShell>

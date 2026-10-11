@@ -19,6 +19,15 @@ const ACTION_LABELS: Record<string, string> = {
   "schedule.entry_add": "Guarda-vidas escalado",
   "schedule.entry_remove": "Guarda-vidas retirado da escala",
   "schedule.confirm": "Escala confirmada",
+  "attendance.sync": "Registro de presença recebido pelo servidor",
+  "attendance.decide": "Decisão sobre registro de presença",
+  "checklist_item.create": "Item do checklist criado",
+  "checklist_item.update": "Item do checklist alterado (nova versão)",
+  "checklist_item.deactivate": "Item do checklist desativado",
+  "checklist_item.reactivate": "Item do checklist reativado",
+  "checklist.start": "Checklist iniciado",
+  "checklist.submit": "Checklist enviado",
+  "checklist.correct": "Checklist corrigido",
 };
 
 type AuditEntryView = {

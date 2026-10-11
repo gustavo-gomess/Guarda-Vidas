@@ -20,7 +20,10 @@ export type AuditEntry = {
     | "PostAssignment"
     | "AvailabilityWindow"
     | "Availability"
-    | "Schedule";
+    | "Schedule"
+    | "AttendanceRecord"
+    | "ChecklistItem"
+    | "Checklist";
   entityId: string;
   postId?: string | null;
   before?: Record<string, unknown> | null;

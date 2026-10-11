@@ -39,7 +39,23 @@ Actions. Veja `ROADMAP.md`.
 | `Schedule`           | Escala de um posto para uma janela: `PROPOSED` → `CONFIRMED` → `CHANGED`; quem confirmou e quando                                                  |
 | `ScheduleEntry`      | Um guarda-vidas em um posto em um dia. **Único por (pessoa, dia)** no banco: ninguém fica em dois postos no mesmo dia                              |
 
-Datas operacionais (janelas e escalas) são colunas `DATE`, tratadas como
+| `Journey` | Jornada: uma por guarda-vidas e dia (único no banco); só inserção |
+| `AttendanceRecord` | Entrada ou saída como chegou (id gerado no aparelho, hora do aparelho, recebimento, origem, GPS, divergências). Só `status` muda (trigger) |
+| `AttendanceDecision` | Toda mudança de estado de um registro: autor (ou sistema), de/para, justificativa. Só inserção |
+
+| `ChecklistItem` / `ChecklistItemVersion` | Itens do checklist de um posto e suas versões (nome, orientação, ordem, ativo). Só inserção |
+| `Checklist` | Checklist de uma jornada (único por jornada): pessoa, posto, dia, situação, versão atual |
+| `ChecklistLine` | Cópia congelada dos itens no início do checklist. Só inserção |
+| `ChecklistRevision` / `ChecklistAnswer` | Cada salvamento: versão completa das respostas (rascunho, envio ou correção com motivo), id gerado pelo navegador. Só inserção |
+
+Histórico **do posto** × histórico **pessoal**: alterações da lista e
+envios/correções de checklist vão para o histórico do posto (`AuditLog`
+com `postId`) e para "Problemas de materiais", com o autor identificado; o
+guarda-vidas vê os seus em "Meus checklists". Os registros pertencem ao
+posto: o autor não pode apagá-los e eles continuam após a desativação da
+conta.
+
+Datas operacionais (janelas, escalas e jornadas) são colunas `DATE`, tratadas como
 texto `AAAA-MM-DD` no calendário de `America/Sao_Paulo` (`src/lib/dates.ts`).
 
 ## Autenticação e autorização
@@ -59,36 +75,50 @@ cookie (token) ──► getCurrentSession() ──► validateSession() ──�
                                   → transação + recordAudit
 ```
 
-| Arquivo                             | Responsabilidade                                         |
-| ----------------------------------- | -------------------------------------------------------- |
-| `src/lib/auth/password.ts`          | Hash `scrypt`, verificação, senha temporária             |
-| `src/lib/auth/tokens.ts`            | Token de sessão e seu hash                               |
-| `src/lib/auth/auth-service.ts`      | Regras de login e sessão (puras, testadas)               |
-| `src/lib/auth/prisma-auth-store.ts` | Implementação Prisma do `AuthStore`                      |
-| `src/lib/auth/session.ts`           | Cookies, `getCurrentSession`, `requireActor`             |
-| `src/lib/auth/policy.ts`            | Todas as regras de permissão (puras, testadas)           |
-| `src/lib/audit.ts`                  | `recordAudit` (mesma transação, sem campos sensíveis)    |
-| `src/features/auth/`                | Login, logout, troca de senha                            |
-| `src/features/users/`               | Administração de contas                                  |
-| `src/features/posts/`               | Postos, áreas de coordenação, equipe e capitão           |
-| `src/features/availability/`        | Janelas e disponibilidade                                |
-| `src/features/schedules/`           | Regras de escala (puras), montagem, confirmação, filtros |
-| `scripts/admin.ts`                  | Primeiro administrador e recuperação de admin            |
+| Arquivo                             | Responsabilidade                                                             |
+| ----------------------------------- | ---------------------------------------------------------------------------- |
+| `src/lib/auth/password.ts`          | Hash `scrypt`, verificação, senha temporária                                 |
+| `src/lib/auth/tokens.ts`            | Token de sessão e seu hash                                                   |
+| `src/lib/auth/auth-service.ts`      | Regras de login e sessão (puras, testadas)                                   |
+| `src/lib/auth/prisma-auth-store.ts` | Implementação Prisma do `AuthStore`                                          |
+| `src/lib/auth/session.ts`           | Cookies, `getCurrentSession`, `requireActor`                                 |
+| `src/lib/auth/policy.ts`            | Todas as regras de permissão (puras, testadas)                               |
+| `src/lib/audit.ts`                  | `recordAudit` (mesma transação, sem campos sensíveis)                        |
+| `src/features/auth/`                | Login, logout, troca de senha                                                |
+| `src/features/users/`               | Administração de contas                                                      |
+| `src/features/posts/`               | Postos, áreas de coordenação, equipe e capitão                               |
+| `src/features/availability/`        | Janelas e disponibilidade                                                    |
+| `src/features/schedules/`           | Regras de escala (puras), montagem, confirmação, filtros                     |
+| `src/features/attendance/`          | Presença: regras puras, serviço idempotente, decisões, consultas             |
+| `src/features/attendance/client/`   | Aparelho: fila offline (IndexedDB), GPS, relógio, envio                      |
+| `src/features/checklists/`          | Checklist: regras puras, versões de itens, salvamento idempotente, consultas |
+| `public/sw.js`                      | Service worker: `/presenca` e arquivos estáticos offline                     |
+| `scripts/admin.ts`                  | Primeiro administrador e recuperação de admin                                |
 
 ### Rotas
 
-| Rota                                                           | Quem acessa                                                                                   |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `/login`                                                       | Público                                                                                       |
-| `/`                                                            | Qualquer usuário autenticado (vê os postos permitidos)                                        |
-| `/conta/senha`                                                 | Usuário autenticado (única liberada com senha temporária)                                     |
-| `/postos/[postId]`                                             | Quem pode ver o posto; gestão de equipe para coordenador do posto e admin                     |
-| `/admin/usuarios`, `/admin/usuarios/[userId]`, `/admin/postos` | Somente administradores (404 para os demais)                                                  |
-| `/disponibilidade`                                             | Guarda-vidas envia a sua; coordenador abre/encerra janelas; autoridade consulta               |
-| `/disponibilidade/[windowId]`                                  | Coordenador (sua área) e autoridade; 404 para guarda-vidas                                    |
-| `/escalas`                                                     | Todos: guarda-vidas vê só os próprios dias publicados; filtros por data, posto e profissional |
-| `/escalas/[scheduleId]`                                        | Coordenador do posto (edita e confirma); autoridade e admin (consulta); 404 para os demais    |
-| `/api/health`                                                  | Público (sem dados)                                                                           |
+| Rota                                                           | Quem acessa                                                                                                                          |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `/login`                                                       | Público                                                                                                                              |
+| `/`                                                            | Qualquer usuário autenticado (vê os postos permitidos)                                                                               |
+| `/conta/senha`                                                 | Usuário autenticado (única liberada com senha temporária)                                                                            |
+| `/postos/[postId]`                                             | Quem pode ver o posto; gestão de equipe para coordenador do posto e admin                                                            |
+| `/admin/usuarios`, `/admin/usuarios/[userId]`, `/admin/postos` | Somente administradores (404 para os demais)                                                                                         |
+| `/disponibilidade`                                             | Guarda-vidas envia a sua; coordenador abre/encerra janelas; autoridade consulta                                                      |
+| `/disponibilidade/[windowId]`                                  | Coordenador (sua área) e autoridade; 404 para guarda-vidas                                                                           |
+| `/escalas`                                                     | Todos: guarda-vidas vê só os próprios dias publicados; filtros por data, posto e profissional                                        |
+| `/presenca`                                                    | Guarda-vidas registra entrada/saída (entrada também offline); outros perfis veem links                                               |
+| `/presenca/validacao`                                          | Coordenador decide (sua área); autoridade consulta; 404 para guarda-vidas                                                            |
+| `/presenca/painel`                                             | Presença do dia: validada × provisória × sem registro; filtros por dia e posto                                                       |
+| `/presenca/jornadas/[journeyId]`                               | Dono, coordenador do posto, autoridade e admin: registros, decisões e histórico                                                      |
+| `/checklists`                                                  | Guarda-vidas: os seus por jornada. Coordenação e autoridade: pendentes, incompletos e enviados do dia (filtros dia, posto, situação) |
+| `/checklists/[journeyId]`                                      | Dono preenche/envia/corrige; coordenador do posto, autoridade e admin consultam; histórico de versões                                |
+| `/checklists/problemas`                                        | Itens ausentes, danificados ou inadequados (filtros período, posto, problema); 404 para guarda-vidas                                 |
+| `/postos/[postId]/itens`                                       | Lista de itens e versões; edição só pelo coordenador do posto                                                                        |
+| `POST /api/presenca/registros`                                 | Recebe entrada/saída (sessão, mesma origem, JSON, idempotente)                                                                       |
+| `GET /api/presenca/hora`                                       | Hora do servidor, para medir o relógio do aparelho                                                                                   |
+| `/escalas/[scheduleId]`                                        | Coordenador do posto (edita e confirma); autoridade e admin (consulta); 404 para os demais                                           |
+| `/api/health`                                                  | Público (sem dados)                                                                                                                  |
 
 ### Recursos do Next.js habilitados
 

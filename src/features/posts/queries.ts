@@ -39,6 +39,9 @@ export async function getPostForActor(actor: Actor, postId: string) {
       location: true,
       notes: true,
       status: true,
+      latitude: true,
+      longitude: true,
+      proximityRadiusMeters: true,
       coordinators: {
         select: { user: { select: { id: true, name: true } } },
         orderBy: { user: { name: "asc" } },
