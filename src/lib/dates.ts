@@ -71,3 +71,19 @@ const dateTimeFormat = new Intl.DateTimeFormat("pt-BR", {
 export function formatDateTime(instant: Date): string {
   return dateTimeFormat.format(instant);
 }
+
+/**
+ * Instant when an operational day starts. America/Sao_Paulo has a fixed
+ * -03:00 offset (no daylight saving since 2019); revisit if that changes.
+ */
+export function startOfOperationalDay(isoDate: string): Date {
+  return new Date(`${isoDate}T00:00:00-03:00`);
+}
+
+/** [from 00:00, day after `to` 00:00) in operational time, for queries. */
+export function operationalRange(from: string, to: string) {
+  return {
+    gte: startOfOperationalDay(from),
+    lt: startOfOperationalDay(addDays(to, 1)),
+  };
+}

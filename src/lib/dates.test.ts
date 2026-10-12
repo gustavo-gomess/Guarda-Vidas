@@ -6,7 +6,9 @@ import {
   formatIsoDate,
   fromDbDate,
   isIsoDate,
+  operationalRange,
   operationalToday,
+  startOfOperationalDay,
   toDbDate,
 } from "@/lib/dates";
 
@@ -42,5 +44,19 @@ describe("operational dates", () => {
 
   it("formats for display without shifting the day", () => {
     expect(formatIsoDate("2026-10-12")).toContain("12/10/2026");
+  });
+
+  it("gives operational day boundaries as instants", () => {
+    expect(startOfOperationalDay("2026-10-12").toISOString()).toBe(
+      "2026-10-12T03:00:00.000Z",
+    );
+    const range = operationalRange("2026-10-12", "2026-10-13");
+    expect(range.gte.toISOString()).toBe("2026-10-12T03:00:00.000Z");
+    expect(range.lt.toISOString()).toBe("2026-10-14T03:00:00.000Z");
+    // Consistent with operationalToday at the edges.
+    expect(operationalToday(new Date(range.lt.getTime() - 1))).toBe(
+      "2026-10-13",
+    );
+    expect(operationalToday(range.lt)).toBe("2026-10-14");
   });
 });

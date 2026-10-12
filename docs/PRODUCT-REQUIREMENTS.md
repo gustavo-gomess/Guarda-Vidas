@@ -5,8 +5,9 @@
 > jornada e presença (RF-02), entrada sem internet (RF-03), checklist
 > individual (RF-04), problemas de materiais no checklist (parte do RF-05),
 > ocorrências e registros do posto em categorias configuráveis (RF-06,
-> RF-07), alerta de reforço (parte do RF-09) e equipes, disponibilidade e
-> escalas (RF-08), com regras provisórias.
+> RF-07), alerta de reforço (parte do RF-09), equipes, disponibilidade e
+> escalas (RF-08), pendências e fechamento diário (RF-10) e relatório
+> diário em tela (RF-12), com regras provisórias.
 >
 > Este documento lista apenas requisitos **fornecidos pelo responsável pelo
 > produto**. Tudo o que não foi informado está marcado como dúvida e

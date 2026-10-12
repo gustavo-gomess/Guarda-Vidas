@@ -70,6 +70,10 @@ Testes de Server Actions e consultas usam `vi.mock` para `@/lib/auth/session`,
 | **Fila no aparelho**                 | `src/features/attendance/client/{queue,device}.test.ts`                              | Nada é apagado sem confirmação; falha de rede, sessão expirada, outra conta; reenvio com o mesmo id; resposta não JSON (portal de Wi-Fi) não conta como confirmação                                                                                                                                                                         |
 | **Rota de sincronização**            | `src/app/api/presenca/registros/route.test.ts`                                       | Outra origem, sem sessão, senha temporária, JSON inválido, corpo grande; usuário vem da sessão; coordenadas fora dos logs                                                                                                                                                                                                                   |
 | **Decisões e consultas**             | `src/features/attendance/{actions,queries}.test.ts`                                  | Só o coordenador do posto decide (autoridade, admin, guarda-vidas, capitão negados); justificativa; colega não abre jornada alheia; painel separa validada × provisória                                                                                                                                                                     |
+| **Resumo do dia**                    | `src/features/reports/summary.test.ts`                                               | **Agregações**: presença validada × provisória × rejeitada; registros pendentes incluindo repetidos; checklists e materiais só de enviados; anulados fora do total; alertas ativos; faltas e não escalados; **pendências**; totais = soma dos resumos                                                                                       |
+| **Fechamento**                       | `src/features/reports/{closing-rules,actions}.test.ts`                               | Estados e transições; envio com pendências; **consolidação bloqueada por pendências**; **correção** só com motivo, nova versão; página antiga/clique duplo; dia futuro; **permissões** (autoridade, admin fora da área, guarda-vidas, outro posto)                                                                                          |
+| **Painéis**                          | `src/features/reports/queries.test.ts`                                               | **Escopo** por perfil; **filtro** de posto fora da área vazio; pendências de envio/consolidação; autoridade sem ações                                                                                                                                                                                                                       |
+| Painéis e fechamento no banco real   | `tests/integration/reports-db.test.ts`                                               | Dia montado com as ações reais de todos os módulos; números conferidos; mesmos números para coordenador e autoridade; fluxo envio → consolidação bloqueada → resolução → consolidação → dado atrasado → correção; versões preservadas; registros intactos; triggers                                                                         |
 | **Regras do alerta**                 | `src/features/alerts/rules.test.ts`                                                  | **Estados e transições** permitidas e recusadas; confirmação obrigatória; estado mudou enquanto a tela estava aberta; nota para encerrar/cancelar; quem age; criação, **repetição**, id reutilizado, alerta ativo duplicado                                                                                                                 |
 | **Envio e indisponibilidade**        | `src/app/api/alertas/route.test.ts`, `src/features/alerts/client/send-alert.test.ts` | 201 só após gravar; repetição 200; **503 com banco fora** (inclusive ao ler a sessão); outra origem, sem sessão, inválido; a tela nunca mostra "enviado" sem o alerta na resposta (rede, 5xx, portal Wi-Fi, 200 vazio)                                                                                                                      |
 | **Ações do alerta**                  | `src/features/alerts/actions.test.ts`                                                | **Reconhecimento, atendimento, encerramento, cancelamento**; permissões por perfil; caixa de confirmação; ação sobre estado antigo                                                                                                                                                                                                          |
@@ -90,6 +94,21 @@ redirecionamento para `/login`; guarda-vidas não abre posto de outro (troca
 de ID na URL) nem páginas de administração (404); administrador acessa;
 guarda-vidas desativado perde o acesso imediatamente e sua sessão é apagada.
 Ainda não automatizado (Playwright pendente).
+
+### Verificação manual de painéis e fechamento (registrada em 2026-10-11)
+
+Build de produção + PostgreSQL, dados do teste de integração, 12 de 12
+casos por HTTP: painel do guarda-vidas só com dados próprios (sem
+pendências da área); painel do coordenador com pendências, tabela por
+posto e dia e equipes; filtro por posto de outra área vazio e sem nada do
+outro posto; data inválida avisada; autoridade só consulta; lista de
+fechamentos e página do dia com as 3 versões, motivo da correção e ações só
+para o coordenador do posto; 404 para coordenador de outra área,
+guarda-vidas e data inválida.
+**Observação do ambiente:** depois de derrubar o servidor no meio de uma
+conexão, o `prisma dev` (PGlite) passou a fechar conexões e o teste de
+integração falhou; reiniciado o banco, passou. Não é falha do código, mas
+mostra que o banco temporário não substitui um PostgreSQL de verdade.
 
 ### Verificação manual de alertas e registros (registrada em 2026-10-10)
 

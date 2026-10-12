@@ -59,6 +59,8 @@ model User {
   occurrenceAnnulments       OccurrenceAnnulment[]
   alerts                     ReinforcementAlert[]
   alertEvents                AlertEvent[]
+  dailyClosings              DailyClosing[]
+  dailyClosingVersions       DailyClosingVersion[]
 }
 
 model Session {
@@ -111,6 +113,7 @@ model Post {
   checklists     Checklist[]
   occurrences    Occurrence[]
   alerts         ReinforcementAlert[]
+  dailyClosings  DailyClosing[]
   auditEntries   AuditLog[]
 }
 
@@ -616,4 +619,64 @@ model AlertEvent {
   createdAt  DateTime           @default(now())
 
   @@index([alertId, createdAt])
+}
+
+/// Provisional states of a daily closing (OD-15).
+enum ClosingStatus {
+  /// Opened by the coordinator; nothing frozen yet.
+  DRAFT
+  /// Sent with the day's data frozen; may still list pending items.
+  SUBMITTED
+  /// Frozen with no pending item.
+  CONSOLIDATED
+  /// A new frozen version after sending, with a reason.
+  CORRECTED
+}
+
+enum ClosingVersionKind {
+  SUBMISSION
+  CONSOLIDATION
+  CORRECTION
+}
+
+/// Daily closing of one post (one per post and day). It never changes the
+/// day's records: it freezes summaries of them in versions. Only status,
+/// notes and the version pointer change (trigger).
+model DailyClosing {
+  id             String        @id @default(uuid()) @db.Uuid
+  postId         String        @db.Uuid
+  post           Post          @relation(fields: [postId], references: [id], onDelete: Restrict)
+  date           DateTime      @db.Date
+  status         ClosingStatus @default(DRAFT)
+  /// Coordinator's notes while in draft; frozen into each version.
+  notes          String        @default("")
+  currentVersion Int           @default(0)
+  createdById    String        @db.Uuid
+  createdBy      User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  versions DailyClosingVersion[]
+
+  @@unique([postId, date])
+  @@index([date])
+}
+
+/// A frozen summary of the post's day (see reports/summary.ts), with who
+/// froze it, when and why. Append-only.
+model DailyClosingVersion {
+  id           String             @id @default(uuid()) @db.Uuid
+  closingId    String             @db.Uuid
+  closing      DailyClosing       @relation(fields: [closingId], references: [id], onDelete: Restrict)
+  version      Int
+  kind         ClosingVersionKind
+  summary      Json
+  pendingCount Int
+  notes        String             @default("")
+  reason       String             @default("")
+  authorId     String             @db.Uuid
+  author       User               @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  createdAt    DateTime           @default(now())
+
+  @@unique([closingId, version])
 }

@@ -43,6 +43,10 @@ estiver concluída e as decisões de produto bloqueantes, aprovadas.
       capitão com estados, ações da coordenação, histórico, aviso interno
       por consulta periódica, falhas de envio explícitas. Regras
       provisórias OD-36 a OD-40.
+- [x] **Painéis e fechamento diário**: painel por perfil, indicadores de um
+      único cálculo, fechamento por posto e dia com rascunho, envio,
+      consolidação e correção em versões imutáveis. Regras provisórias
+      OD-14, OD-15, OD-17, OD-41.
 
 ## Pendente da etapa de requisitos
 

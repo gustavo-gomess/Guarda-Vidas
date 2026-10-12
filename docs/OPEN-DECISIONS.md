@@ -321,6 +321,17 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
   internet** (nem guardados para depois, para ninguém achar que foram); a
   página de envio abre offline só para orientar o canal oficial.
 
+### OD-41 — Lacunas de pessoal e indicadores
+
+- O pedido fala em "lacunas de pessoal" sem definir efetivo mínimo (OD-26).
+- **Provisória (implementada):** lacuna = posto **em operação sem escala
+  confirmada** no dia, ou **escalado sem entrada** registrada. Também são
+  mostrados: entrada de quem não estava escalado e entrada sem saída.
+- As regras de todos os indicadores estão em `docs/ARCHITECTURE.md` ›
+  Indicadores e são calculadas em um único lugar
+  (`src/features/reports/summary.ts`).
+- Pendente: efetivo mínimo por posto e dia (permitiria "faltam N").
+
 ### OD-09 — Entrada offline: evidências
 
 - Hora do aparelho basta? Exigir foto/localização? (afeta LGPD).
@@ -385,10 +396,31 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
 ### OD-14 — Pendências
 
 - O que gera uma pendência; quem resolve.
+- **Provisória (implementada, Prompt 7):** pendência do dia de um posto =
+  registro de presença aguardando decisão (entrada, saída ou repetido),
+  checklist não enviado (incompleto ou não iniciado) ou alerta ativo
+  criado no dia. Quem resolve: a coordenação, nos próprios módulos
+  (validação, cobrança do checklist, encerramento do alerta). Não há tela
+  de "pendências" separada: elas são calculadas a partir dos registros.
 
 ### OD-15 — Fechamento diário
 
 - Por posto ou geral; pendências bloqueiam; o que fica travado; reabertura.
+- **Provisória (implementada, Prompt 7):**
+  - fechamento **por posto e dia**, feito pelo **coordenador do posto**;
+  - estados: **rascunho** (observações, nada congelado) → **enviado**
+    (congela um resumo; pode ter pendências, que ficam identificadas) →
+    **consolidado** (só sem pendências) → **corrigido** (nova versão com
+    motivo, a qualquer momento depois do envio; pode ser consolidado de
+    novo). Cada envio, consolidação ou correção é uma **versão imutável**;
+  - pendências **bloqueiam só a consolidação**, não o envio;
+  - o fechamento **não trava nada**: registros que chegam depois continuam
+    sendo aceitos e a tela do fechamento avisa que os dados mudaram desde a
+    última versão; a correção registra isso;
+  - não há "reabertura": a correção cumpre esse papel sem apagar versões;
+  - dia futuro não pode ser fechado.
+- Pendente: fechamento geral (todos os postos); travar edições após
+  consolidar; prazo para fechar; quem pode corrigir depois de consolidado.
 
 ### OD-16 — Histórico de alterações
 
@@ -399,6 +431,16 @@ Decisões técnicas já tomadas ficam em `DECISIONS.md`.
 ### OD-17 — Relatórios diários
 
 - Conteúdo, formato (tela, PDF, planilha), destinatários.
+- **Provisória (implementada, Prompt 7):** o relatório diário é a **versão
+  do fechamento** do posto, vista na tela (imprimível pelo navegador):
+  escala, presença validada × provisória, faltas, saídas não registradas,
+  checklists, materiais com problema, registros por categoria (inclui
+  ações preventivas e águas-vivas quando essas categorias existem),
+  alertas e alterações do dia. Destinatários: coordenação, autoridade e
+  administradores, pela tela. "Pendente de envio" = dia sem fechamento ou
+  em rascunho; "pendente de consolidação" = enviado ou corrigido.
+- Pendente: PDF/planilha; envio por e-mail; relatório consolidado de
+  vários postos assinado por alguém.
 
 ### OD-18 — Matriz offline por funcionalidade
 

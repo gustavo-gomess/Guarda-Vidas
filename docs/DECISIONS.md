@@ -383,6 +383,33 @@ exigiu subir a versão dos caches (v2).
 
 ---
 
+## D013 — Um cálculo para todos os painéis; fechamento por versões
+
+**Contexto.** Prompt 7: painéis por perfil e fechamento diário, sem cálculos
+divergentes entre telas, sem apagar ou sobrescrever registros originais.
+
+**Decisão.**
+
+- **Um resumo por posto e dia** (`summarizePostDay`, função pura) e totais
+  como **soma** desses resumos (`sumSummaries`). Painel do coordenador,
+  painel da autoridade, lista de fechamentos e o próprio fechamento usam
+  as mesmas funções; não há outra contagem dos mesmos indicadores.
+- **Carga em lote** (`loadSummaries`): poucas consultas para todos os
+  postos e dias do período, agrupadas em memória. Período limitado a 62
+  dias (o mesmo limite dos outros filtros).
+- **Fechamento = versões congeladas**: cada envio, consolidação ou correção
+  grava o resumo lido **na mesma transação** e nunca o altera (trigger).
+  Os registros dos módulos não são tocados. A tela compara o resumo atual
+  com a última versão e avisa quando os dados mudaram.
+- **Proteção contra clique duplo e coordenadores simultâneos**: linha do
+  fechamento travada e versão esperada enviada pelo formulário.
+- **Formato**: tela (imprimível); PDF/planilha ficam para OD-17.
+
+**Consequências.** Valores "ao vivo" e "do fechamento" podem diferir de
+propósito (dados que chegam depois); a tela sempre diz qual é qual.
+
+---
+
 ## Decisões pendentes
 
 Decisões de **produto** ficam em `OPEN-DECISIONS.md`. Pendências técnicas:

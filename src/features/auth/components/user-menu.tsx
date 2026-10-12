@@ -23,6 +23,11 @@ export function UserMenu({ actor }: { actor: Actor }) {
         <Link href="/ocorrencias" className="underline">
           Ocorrências
         </Link>
+        {actor.role !== "LIFEGUARD" ? (
+          <Link href="/fechamento" className="underline">
+            Fechamento
+          </Link>
+        ) : null}
         {actor.role === "COORDINATOR" ? (
           <AlertsLink />
         ) : (

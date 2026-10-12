@@ -54,6 +54,9 @@ Actions. Veja `ROADMAP.md`.
 | `ReinforcementAlert` | Alerta de reforço (id gerado no navegador, posto, autor, descrição, estado). Só `status` muda |
 | `AlertEvent` | Cada mudança de estado do alerta: quem, quando, de/para, nota. Só inserção |
 
+| `DailyClosing` | Fechamento de um posto em um dia (único): situação, observações, versão atual. Só a situação, observações e versão mudam |
+| `DailyClosingVersion` | Cada envio, consolidação ou correção: resumo congelado (JSON), pendências, motivo, autor. Só inserção |
+
 Histórico **do posto** × histórico **pessoal**: alterações da lista e
 envios/correções de checklist vão para o histórico do posto (`AuditLog`
 com `postId`) e para "Problemas de materiais", com o autor identificado; o
@@ -97,6 +100,7 @@ cookie (token) ──► getCurrentSession() ──► validateSession() ──�
 | `src/features/schedules/`           | Regras de escala (puras), montagem, confirmação, filtros                                                   |
 | `src/features/attendance/`          | Presença: regras puras, serviço idempotente, decisões, consultas                                           |
 | `src/features/attendance/client/`   | Aparelho: fila offline (IndexedDB), GPS, relógio, envio                                                    |
+| `src/features/reports/`             | Resumo do posto-dia (puro, único), carga em lote, painéis, fechamento                                      |
 | `src/features/alerts/`              | Alerta de reforço: estados e transições (puros), gravação idempotente, ações, aviso por consulta periódica |
 | `src/features/occurrences/`         | Registros operacionais: campos configuráveis, versões de categoria, anulação                               |
 | `src/lib/http.ts`                   | Origem, JSON e tamanho para Route Handlers                                                                 |
@@ -106,34 +110,36 @@ cookie (token) ──► getCurrentSession() ──► validateSession() ──�
 
 ### Rotas
 
-| Rota                                                           | Quem acessa                                                                                                                          |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `/login`                                                       | Público                                                                                                                              |
-| `/`                                                            | Qualquer usuário autenticado (vê os postos permitidos)                                                                               |
-| `/conta/senha`                                                 | Usuário autenticado (única liberada com senha temporária)                                                                            |
-| `/postos/[postId]`                                             | Quem pode ver o posto; gestão de equipe para coordenador do posto e admin                                                            |
-| `/admin/usuarios`, `/admin/usuarios/[userId]`, `/admin/postos` | Somente administradores (404 para os demais)                                                                                         |
-| `/disponibilidade`                                             | Guarda-vidas envia a sua; coordenador abre/encerra janelas; autoridade consulta                                                      |
-| `/disponibilidade/[windowId]`                                  | Coordenador (sua área) e autoridade; 404 para guarda-vidas                                                                           |
-| `/escalas`                                                     | Todos: guarda-vidas vê só os próprios dias publicados; filtros por data, posto e profissional                                        |
-| `/presenca`                                                    | Guarda-vidas registra entrada/saída (entrada também offline); outros perfis veem links                                               |
-| `/presenca/validacao`                                          | Coordenador decide (sua área); autoridade consulta; 404 para guarda-vidas                                                            |
-| `/presenca/painel`                                             | Presença do dia: validada × provisória × sem registro; filtros por dia e posto                                                       |
-| `/presenca/jornadas/[journeyId]`                               | Dono, coordenador do posto, autoridade e admin: registros, decisões e histórico                                                      |
-| `/alertas`                                                     | Coordenador (área), autoridade, admin; capitão vê os do seu posto. Sem reconhecimento em destaque; atualiza a cada 30 s              |
-| `/alertas/novo`                                                | Capitão envia; abre sem internet para orientar o canal oficial                                                                       |
-| `/alertas/[alertId]`                                           | Histórico de estados; ações do coordenador do posto; cancelar pelo autor                                                             |
-| `POST /api/alertas` · `GET /api/alertas/pendentes`             | Grava o alerta antes de responder (201/200; 503 se indisponível) · contador do menu                                                  |
-| `/ocorrencias` · `/ocorrencias/nova` · `/ocorrencias/[id]`     | Livro do posto (filtros período, posto, categoria) · registro pela equipe · detalhe, anulação e histórico                            |
-| `/admin/ocorrencias`                                           | Categorias e campos (administradores)                                                                                                |
-| `/checklists`                                                  | Guarda-vidas: os seus por jornada. Coordenação e autoridade: pendentes, incompletos e enviados do dia (filtros dia, posto, situação) |
-| `/checklists/[journeyId]`                                      | Dono preenche/envia/corrige; coordenador do posto, autoridade e admin consultam; histórico de versões                                |
-| `/checklists/problemas`                                        | Itens ausentes, danificados ou inadequados (filtros período, posto, problema); 404 para guarda-vidas                                 |
-| `/postos/[postId]/itens`                                       | Lista de itens e versões; edição só pelo coordenador do posto                                                                        |
-| `POST /api/presenca/registros`                                 | Recebe entrada/saída (sessão, mesma origem, JSON, idempotente)                                                                       |
-| `GET /api/presenca/hora`                                       | Hora do servidor, para medir o relógio do aparelho                                                                                   |
-| `/escalas/[scheduleId]`                                        | Coordenador do posto (edita e confirma); autoridade e admin (consulta); 404 para os demais                                           |
-| `/api/health`                                                  | Público (sem dados)                                                                                                                  |
+| Rota                                                           | Quem acessa                                                                                                                                                                      |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/login`                                                       | Público                                                                                                                                                                          |
+| `/`                                                            | Qualquer usuário autenticado (vê os postos permitidos)                                                                                                                           |
+| `/conta/senha`                                                 | Usuário autenticado (única liberada com senha temporária)                                                                                                                        |
+| `/postos/[postId]`                                             | Quem pode ver o posto; gestão de equipe para coordenador do posto e admin                                                                                                        |
+| `/admin/usuarios`, `/admin/usuarios/[userId]`, `/admin/postos` | Somente administradores (404 para os demais)                                                                                                                                     |
+| `/disponibilidade`                                             | Guarda-vidas envia a sua; coordenador abre/encerra janelas; autoridade consulta                                                                                                  |
+| `/disponibilidade/[windowId]`                                  | Coordenador (sua área) e autoridade; 404 para guarda-vidas                                                                                                                       |
+| `/escalas`                                                     | Todos: guarda-vidas vê só os próprios dias publicados; filtros por data, posto e profissional                                                                                    |
+| `/presenca`                                                    | Guarda-vidas registra entrada/saída (entrada também offline); outros perfis veem links                                                                                           |
+| `/presenca/validacao`                                          | Coordenador decide (sua área); autoridade consulta; 404 para guarda-vidas                                                                                                        |
+| `/presenca/painel`                                             | Presença do dia: validada × provisória × sem registro; filtros por dia e posto                                                                                                   |
+| `/presenca/jornadas/[journeyId]`                               | Dono, coordenador do posto, autoridade e admin: registros, decisões e histórico                                                                                                  |
+| `/`                                                            | Painel por perfil: guarda-vidas (própria escala, jornada, checklist, registros); coordenador (pendências da área); autoridade (indicadores, só leitura). Filtros período e posto |
+| `/fechamento` · `/fechamento/[postId]/[date]`                  | Situação dos fechamentos (período, posto) · dados atuais do dia, ações do coordenador do posto, versões congeladas; 404 para guarda-vidas e fora da área                         |
+| `/alertas`                                                     | Coordenador (área), autoridade, admin; capitão vê os do seu posto. Sem reconhecimento em destaque; atualiza a cada 30 s                                                          |
+| `/alertas/novo`                                                | Capitão envia; abre sem internet para orientar o canal oficial                                                                                                                   |
+| `/alertas/[alertId]`                                           | Histórico de estados; ações do coordenador do posto; cancelar pelo autor                                                                                                         |
+| `POST /api/alertas` · `GET /api/alertas/pendentes`             | Grava o alerta antes de responder (201/200; 503 se indisponível) · contador do menu                                                                                              |
+| `/ocorrencias` · `/ocorrencias/nova` · `/ocorrencias/[id]`     | Livro do posto (filtros período, posto, categoria) · registro pela equipe · detalhe, anulação e histórico                                                                        |
+| `/admin/ocorrencias`                                           | Categorias e campos (administradores)                                                                                                                                            |
+| `/checklists`                                                  | Guarda-vidas: os seus por jornada. Coordenação e autoridade: pendentes, incompletos e enviados do dia (filtros dia, posto, situação)                                             |
+| `/checklists/[journeyId]`                                      | Dono preenche/envia/corrige; coordenador do posto, autoridade e admin consultam; histórico de versões                                                                            |
+| `/checklists/problemas`                                        | Itens ausentes, danificados ou inadequados (filtros período, posto, problema); 404 para guarda-vidas                                                                             |
+| `/postos/[postId]/itens`                                       | Lista de itens e versões; edição só pelo coordenador do posto                                                                                                                    |
+| `POST /api/presenca/registros`                                 | Recebe entrada/saída (sessão, mesma origem, JSON, idempotente)                                                                                                                   |
+| `GET /api/presenca/hora`                                       | Hora do servidor, para medir o relógio do aparelho                                                                                                                               |
+| `/escalas/[scheduleId]`                                        | Coordenador do posto (edita e confirma); autoridade e admin (consulta); 404 para os demais                                                                                       |
+| `/api/health`                                                  | Público (sem dados)                                                                                                                                                              |
 
 ### Recursos do Next.js habilitados
 
@@ -264,3 +270,26 @@ compartilhado entre features sobe para `lib/` ou `components/ui/`.
 - Estratégia offline (PWA, armazenamento local, sincronização).
 - Hospedagem — veja `DEPLOYMENT.md`.
 - Tratamento de dados pessoais (LGPD) — depende do domínio.
+
+## Indicadores
+
+Todos calculados em `src/features/reports/summary.ts` (`summarizePostDay`),
+por posto e dia operacional (America/Sao_Paulo). Totais de período ou de
+vários postos são a **soma** dos resumos (`sumSummaries`).
+
+| Indicador                    | Regra                                                                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Escalados                    | Pessoas em escala **confirmada ou alterada** do posto no dia (proposta não conta)                                         |
+| Presença validada            | Jornadas cuja **entrada** está validada. É o único número de presença oficial                                             |
+| Presença provisória          | Entrada aguardando validação ou em análise. **Nunca** somada à validada                                                   |
+| Rejeitada                    | Entrada rejeitada (mantida, fora dos dois números acima)                                                                  |
+| Escalados sem entrada        | Escalados sem jornada no dia (lacuna)                                                                                     |
+| Não escalados com entrada    | Jornada de quem não estava na escala                                                                                      |
+| Entrada sem saída            | Jornada com entrada e sem saída                                                                                           |
+| Registros aguardando decisão | Todos os registros de presença (entradas, saídas, repetidos) aguardando validação ou em análise                           |
+| Checklists                   | Um por jornada: enviado, incompleto (rascunho) ou não iniciado                                                            |
+| Problemas de materiais       | Itens ausentes/danificados/inadequados nas respostas **atuais de checklists enviados** (mesma regra da tela de problemas) |
+| Registros operacionais       | Por categoria; **anulados ficam fora do total** e são contados à parte                                                    |
+| Alertas                      | Criados no dia; ativos = aguardando, reconhecidos ou em atendimento                                                       |
+| Alterações                   | Entradas do histórico do posto no dia                                                                                     |
+| Pendências                   | Registros aguardando decisão + checklists não enviados + alertas ativos do dia. Bloqueiam só a consolidação do fechamento |

@@ -32,6 +32,12 @@
  *   configure the categories and fields.
  * - The post's captain sends reinforcement alerts; the post's coordinators
  *   acknowledge, attend and close them; author or coordinator cancels.
+ *
+ * Panels and daily closing (provisional, OD-14, OD-15, OD-17):
+ * - Coordinators see their area; authority and administrators see all,
+ *   read-only; lifeguards see only their own panel.
+ * - Only the post's coordinator saves, sends, consolidates and corrects
+ *   the post's daily closing.
  */
 
 export type Role = "AUTHORITY" | "COORDINATOR" | "LIFEGUARD";
@@ -196,6 +202,16 @@ export function canViewAlert(
     canActAsCaptain(actor, alert.postId) ||
     canViewPostSchedules(actor, alert.postId)
   );
+}
+
+/** See consolidated indicators and closings (not lifeguards). */
+export function canViewReports(actor: Actor): boolean {
+  return canViewAvailability(actor);
+}
+
+/** Save, send, consolidate and correct a post's daily closing. */
+export function canCloseDay(actor: Actor, postId: string): boolean {
+  return coordinates(actor, postId);
 }
 
 /** Captain-only operational duties, e.g. reinforcement alerts. */

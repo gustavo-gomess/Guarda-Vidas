@@ -37,6 +37,10 @@ const ACTION_LABELS: Record<string, string> = {
   "occurrence_category.update": "Categoria de registro alterada (nova versão)",
   "occurrence.create": "Registro operacional criado",
   "occurrence.annul": "Registro operacional anulado",
+  "closing.draft": "Fechamento iniciado (rascunho)",
+  "closing.submit": "Fechamento enviado",
+  "closing.consolidate": "Fechamento consolidado",
+  "closing.correct": "Fechamento corrigido",
 };
 
 type AuditEntryView = {

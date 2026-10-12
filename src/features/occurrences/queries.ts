@@ -10,6 +10,7 @@ import {
   canViewOccurrences,
   type Actor,
 } from "@/lib/auth/policy";
+import { operationalRange } from "@/lib/dates";
 import { getDb } from "@/lib/db";
 
 /**
@@ -81,24 +82,17 @@ function postWhere(
   return null;
 }
 
-/** Day boundaries in the operational time zone (-03:00, no DST since 2019). */
-function dayStart(isoDate: string) {
-  return new Date(`${isoDate}T00:00:00-03:00`);
-}
-
 export async function listOccurrences(
   actor: Actor,
   filters: OccurrenceFilters,
 ) {
   const where = postWhere(actor, filters.postId);
   if (!where) return null;
-  const end = dayStart(filters.to);
-  end.setUTCDate(end.getUTCDate() + 1);
   const records = await getDb().occurrence.findMany({
     where: {
       ...where,
       ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
-      occurredAt: { gte: dayStart(filters.from), lt: end },
+      occurredAt: operationalRange(filters.from, filters.to),
     },
     select: {
       id: true,
